@@ -103,10 +103,10 @@
 | ข้อ | สถานะ |
 |---|---|
 | ตรวจ constraint ก่อนแสดงแผน | Implemented |
-| ตรวจก่อน execute | Missing (ยังไม่มี execute) |
-| ผู้ใช้อนุมัติก่อน execute ใน sandbox | Missing |
-| บันทึกผลสำเร็จและล้มเหลวใน audit log | Missing |
-| กันการ execute ซ้ำ | Missing |
+| ตรวจก่อน execute | Implemented (อัปเดต 14 ต.ค.) |
+| ผู้ใช้อนุมัติก่อน execute ใน sandbox | Implemented (อัปเดต 14 ต.ค.) |
+| บันทึกผลสำเร็จและล้มเหลวใน audit log | Implemented (อัปเดต 14 ต.ค.) |
+| กันการ execute ซ้ำ | Implemented (อัปเดต 14 ต.ค.) |
 
 ทั้งหมดที่ Missing คือ milestone M3 ซึ่งออกแบบไว้แล้วใน `SYSTEM_ARCHITECTURE.md` และเป็นงานถัดไป ตอนนี้ agent ถูกจำกัดสิทธิ์ไว้ที่ระดับคำนวณ ถ้าขอให้อนุมัติหรือโอนเงินจะปฏิเสธ
 

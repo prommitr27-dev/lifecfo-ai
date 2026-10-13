@@ -1,31 +1,43 @@
 """LifeCFO AI: Streamlit entry point.
 
-Current scope (M1, M2): the daily cash flow forecast with its feasibility
-check, the Personal CFO comparison of three validated plans, and the AI CFO
-chat. The what-if control works on a copy of the state and never changes
-stored data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
+Views: daily cash flow forecast, Personal CFO plan comparison, AI CFO chat, and
+the Sandbox where the user approves plans and the audit log is shown. State is
+kept in a local SQLite sandbox. The what-if control works on a copy and never
+changes stored data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
 """
 
+import json
+import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from lifecfo.agents import AgentContext, AgentReply, build_agent
+from lifecfo.agents import AgentContext, AgentReply, Tier, build_agent
 from lifecfo.cashflow import (
     FeasibilityStatus,
     check_feasibility,
     forecast_cash_flow,
     monthly_summary,
 )
+from lifecfo.database import Store
 from lifecfo.domain.loader import load_state
 from lifecfo.domain.models import FinancialState
 from lifecfo.domain.money import SATANG_PER_THB, format_thb
 from lifecfo.llm import LLMSettings, load_env_file
 from lifecfo.optimization import PlanningResult, PlanningStatus, generate_plans
+from lifecfo.services import OpResult, SandboxService
 
-PROFILE = Path(__file__).resolve().parents[1] / "data" / "synthetic" / "profile_demo.yaml"
-VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat"]
+ROOT = Path(__file__).resolve().parents[1]
+PROFILE = ROOT / "data" / "synthetic" / "profile_demo.yaml"
+DB_PATH = Path(os.environ.get("LIFECFO_DB_PATH") or ROOT / ".lifecfo" / "sandbox.db")
+VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat", "Sandbox"]
+
+
+@st.cache_resource
+def open_store(path: str) -> Store:
+    return Store(path)
+
 
 
 @st.cache_data(max_entries=32)
@@ -35,6 +47,12 @@ def plan_for(state_json: str, horizon_months: int) -> PlanningResult:
 
 def baht(satang: int) -> float:
     return satang / SATANG_PER_THB
+
+
+def report_result(result: OpResult) -> None:
+    """Keep the outcome of a sandbox action so it is shown after the rerun."""
+    st.session_state["sandbox_message"] = (result.ok, f"{result.code}: {result.message}")
+    st.rerun()
 
 
 def show_reply(reply: AgentReply) -> None:
@@ -56,14 +74,18 @@ st.set_page_config(page_title="LifeCFO AI", page_icon=":material/savings:", layo
 st.title("LifeCFO AI")
 st.caption("Your financial plan should adapt when life doesn't. Synthetic sandbox data only.")
 
-state = load_state(PROFILE)
+sandbox = SandboxService(open_store(str(DB_PATH)))
+if sandbox.store.load_state() is None:
+    sandbox.reset(load_state(PROFILE), actor="SYSTEM")
+state = sandbox.state
 
 with st.sidebar:
     st.header("What-if (hypothetical)")
     income_change = st.slider("Income change (%)", min_value=-100, max_value=50, value=0, step=5)
     st.caption("Hypothetical scenarios are simulated on a copy. Nothing is saved.")
 
-if income_change != 0:
+hypothetical = income_change != 0
+if hypothetical:
     scaled = tuple(
         income.model_copy(update={"amount": income.amount * (100 + income_change) // 100})
         for income in state.incomes
@@ -126,9 +148,10 @@ if view == "Cash flow":
         st.dataframe(events, hide_index=True, alt="Scheduled cash events")
 
 elif view == "AI CFO chat":
-    load_env_file(Path(__file__).resolve().parents[1] / ".env")
+    load_env_file(ROOT / ".env")
     settings = LLMSettings.from_env()
-    agent = build_agent(settings)
+    # The agent may call the execute tool, which itself refuses without the user's approval.
+    agent = build_agent(settings, max_tier=Tier.EXECUTE)
     if settings.problem:
         st.warning(f"AI provider is not usable ({settings.problem}) Running in offline mode.")
     elif settings.uses_llm:
@@ -155,9 +178,99 @@ elif view == "AI CFO chat":
         with st.chat_message("assistant"):
             past = [(e["role"], e["text"] if e["role"] == "user" else e["reply"].text)
                     for e in history[:-1]]
-            reply = agent.reply(AgentContext(state), prompt, past)
+            context = AgentContext(state, None if hypothetical else sandbox)
+            reply = agent.reply(context, prompt, past)
             show_reply(reply)
         history.append({"role": "assistant", "reply": reply})
+
+elif view == "Sandbox":
+    message = st.session_state.pop("sandbox_message", None)
+    if message:
+        (st.success if message[0] else st.error)(message[1])
+
+    stored = sandbox.state
+    chain_ok = sandbox.store.verify_audit_chain()
+    with st.container(horizontal=True):
+        st.metric("Sandbox date", stored.as_of.isoformat(), border=True)
+        st.metric("Sandbox cash", format_thb(stored.total_cash), border=True)
+        st.metric("Audit log", "Intact" if chain_ok else "Altered", border=True,
+                  help="Each entry stores the hash of the previous one.")
+    st.caption("A simulated account. No real money, bank, or credentials are involved.")
+
+    st.subheader("Waiting for your decision")
+    pending = sandbox.store.list_plans("PROPOSED")
+    if not pending:
+        st.caption("No proposals. Propose a plan from Personal CFO or ask in the chat.")
+    for row in pending:
+        with st.container(border=True, horizontal=True, vertical_alignment="center"):
+            st.markdown(f"**{row['label']}** plan `{row['id']}`, proposed {row['created_at']}")
+            if st.button("Approve", key=f"approve-{row['id']}", type="primary",
+                         icon=":material/check:"):
+                report_result(sandbox.decide(row["id"], True))
+            if st.button("Reject", key=f"reject-{row['id']}", icon=":material/close:"):
+                report_result(sandbox.decide(row["id"], False))
+
+    st.subheader("Approved, ready to execute")
+    ready = [a for a in sandbox.store.list_approvals()
+             if a["decision"] == "APPROVED" and a["used_at"] is None]
+    if not ready:
+        st.caption("Nothing approved is waiting.")
+    for approval in ready:
+        plan_row = sandbox.store.get_plan(approval["plan_id"])
+        with st.container(border=True, horizontal=True, vertical_alignment="center"):
+            st.markdown(f"**{plan_row['label']}** plan `{plan_row['id']}`, approval "
+                        f"`{approval['id']}`")
+            if st.button("Execute in sandbox", key=f"execute-{approval['id']}", type="primary",
+                         icon=":material/play_arrow:"):
+                report_result(sandbox.execute(approval["id"], "USER"))
+
+    st.subheader("Move time forward")
+    with st.container(horizontal=True, vertical_alignment="bottom"):
+        days = st.number_input("Days", min_value=1, max_value=366, value=30, step=1)
+        if st.button("Post scheduled transactions", icon=":material/fast_forward:"):
+            report_result(sandbox.advance(int(days)))
+    st.caption("Posts income, bills, and savings transfers for those days as sandbox "
+               "transactions. It is refused if cash would run short.")
+
+    st.subheader("Sandbox transactions")
+    rows = sandbox.store.list_transactions()
+    if rows:
+        st.dataframe(
+            pd.DataFrame([
+                {"#": r["id"], "date": r["effective_on"], "kind": r["kind"], "ref": r["ref"],
+                 "from": r["from_envelope"], "to": r["to_envelope"],
+                 "amount_thb": baht(r["amount"])}
+                for r in rows
+            ]),
+            hide_index=True, alt="Sandbox transactions",
+        )
+    else:
+        st.caption("No transactions yet.")
+
+    st.subheader("Audit log")
+    entries = sandbox.store.list_audit()
+    st.dataframe(
+        pd.DataFrame([
+            {"#": e.seq, "time (UTC)": e.ts, "actor": e.actor, "action": e.action,
+             "code": e.payload.get("code", ""), "plan": e.payload.get("plan_id", ""),
+             "hash": e.hash[:12]}
+            for e in entries
+        ]),
+        hide_index=True, alt="Audit log entries",
+    )
+    with st.container(horizontal=True):
+        st.download_button(
+            "Download audit log (JSON)",
+            data=json.dumps(
+                {"chain_intact": chain_ok,
+                 "entries": [e.__dict__ for e in entries],
+                 "transactions": [dict(r) for r in rows]}, indent=2),
+            file_name="lifecfo_sandbox_log.json", mime="application/json",
+            icon=":material/download:",
+        )
+        if st.button("Reset sandbox", icon=":material/restart_alt:"):
+            st.session_state.pop("chat", None)
+            report_result(sandbox.reset(load_state(PROFILE)))
 
 else:
     horizon_months = st.select_slider("Horizon (months)", options=[6, 12, 18, 24], value=12)
@@ -221,7 +334,13 @@ else:
         ).fillna(0.0)
         st.dataframe(schedule, hide_index=True,
                      alt=f"Monthly allocations for the {plan.label} plan in baht")
-        st.caption(
-            "Savings are swept on the last day of each month. Plans are proposals: nothing is "
-            "applied until approval and sandbox execution are added in the next milestone."
-        )
+        st.caption("Savings are swept on the last day of each month. A plan is only a "
+                   "proposal until you approve it in the Sandbox view.")
+        if hypothetical:
+            st.info("This is a what-if view. Set the income change back to 0 to propose a plan "
+                    "for your actual sandbox state.")
+        elif st.button(f"Request approval for the {plan.label} plan",
+                       icon=":material/assignment_turned_in:"):
+            outcome = sandbox.propose(plan, "USER")
+            (st.success if outcome.ok else st.error)(
+                f"{outcome.code}: {outcome.message} Open the Sandbox view to decide.")

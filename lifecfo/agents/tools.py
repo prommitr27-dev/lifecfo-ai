@@ -16,11 +16,18 @@ registry no matter what the model asked for.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
-from enum import IntEnum
+from datetime import date, timedelta
+from enum import IntEnum, StrEnum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from lifecfo.cashflow import check_feasibility, forecast_cash_flow, monthly_summary
 from lifecfo.cashflow.forecast import EventKind, build_events
@@ -32,8 +39,11 @@ from lifecfo.domain.models import (
     Frequency,
 )
 from lifecfo.domain.money import SATANG_PER_THB
+from lifecfo.domain.schedule import clamp_day
 from lifecfo.llm.base import ToolSpec
 from lifecfo.optimization import Plan, PlanningResult, PlanningStatus, generate_plans
+from lifecfo.optimization.optimizer import horizon_days
+from lifecfo.services.sandbox import AGENT, SandboxService
 
 
 class Tier(IntEnum):
@@ -46,6 +56,8 @@ class Tier(IntEnum):
 @dataclass(frozen=True)
 class AgentContext:
     state: FinancialState
+    # Needed by PROPOSE and EXECUTE tools; None in read-only or hypothetical contexts.
+    sandbox: SandboxService | None = None
 
 
 class NoInput(BaseModel):
@@ -64,6 +76,32 @@ class IncomeChangeInput(NoInput):
     percent: Annotated[float, Field(ge=-100, le=100, description=(
         "Change in every income source, in percent. Negative for a cut, e.g. -20."))]
     horizon_months: Annotated[int, Field(ge=1, le=24)] = 12
+
+
+class Strategy(StrEnum):
+    SAFETY_FIRST = "SAFETY_FIRST"
+    BALANCED = "BALANCED"
+    GOAL_FIRST = "GOAL_FIRST"
+
+
+class ProposeInput(NoInput):
+    # Declared as a plain string so that "Balanced" or "safety first" from a model is
+    # normalised here instead of being rejected by the provider's schema check.
+    strategy: Annotated[str, Field(max_length=40, description=(
+        "Which plan to propose: SAFETY_FIRST, BALANCED, or GOAL_FIRST."))]
+    horizon_months: Annotated[int, Field(ge=1, le=24)] = 12
+
+    @field_validator("strategy")
+    @classmethod
+    def _known_strategy(cls, value: str) -> str:
+        normalised = "_".join(value.strip().upper().replace("-", " ").split())
+        if normalised not in Strategy.__members__:
+            raise ValueError("must be SAFETY_FIRST, BALANCED, or GOAL_FIRST")
+        return normalised
+
+
+class AuditInput(NoInput):
+    limit: Annotated[int, Field(ge=1, le=50)] = 10
 
 
 class UnexpectedExpenseInput(NoInput):
@@ -140,6 +178,12 @@ class ToolRegistry:
                           tool.handler(context, parsed))
 
 
+def _one_month_ahead(start: date) -> date:
+    """Last day of the month-long window starting at `start` (1 Dec -> 31 Dec)."""
+    year, month = (start.year + 1, 1) if start.month == 12 else (start.year, start.month + 1)
+    return clamp_day(year, month, start.day) - timedelta(days=1)
+
+
 def baht(satang: int) -> int | float:
     whole, rest = divmod(satang, SATANG_PER_THB)
     return whole if rest == 0 else round(satang / SATANG_PER_THB, 2)
@@ -151,9 +195,17 @@ def _monthly(items) -> int:
 
 def _profile(context: AgentContext, _: NoInput) -> dict[str, Any]:
     state = context.state
-    essential = [e for e in state.expenses if e.category is ExpenseCategory.ESSENTIAL]
-    flexible = [e for e in state.expenses if e.category is ExpenseCategory.FLEXIBLE]
     emergency = next((e for e in state.envelopes if e.kind is EnvelopeKind.EMERGENCY), None)
+    # Totals over the coming month, so they are right for recurring items and for the
+    # dated schedule of an activated plan alike.
+    end = _one_month_ahead(state.as_of)
+    totals = dict.fromkeys(EventKind, 0)
+    for event in build_events(state, state.as_of, end):
+        totals[event.kind] += event.amount
+    floor = sum(
+        e.amount for e in build_events(state, state.as_of, end, flexible_at_floor=True)
+        if e.kind is EventKind.FLEXIBLE_EXPENSE
+    )
     return {
         "as_of": state.as_of.isoformat(),
         "currency": state.currency,
@@ -161,16 +213,12 @@ def _profile(context: AgentContext, _: NoInput) -> dict[str, Any]:
         "unallocated_cash": baht(state.unallocated.balance),
         "emergency_fund": baht(emergency.balance) if emergency else 0,
         "emergency_fund_target": baht(state.reserve_target),
-        "monthly_income": baht(_monthly(state.incomes)),
-        "monthly_essential_expenses": baht(_monthly(essential)),
-        "monthly_flexible_budget": baht(_monthly(flexible)),
-        "monthly_flexible_minimum": baht(
-            sum(e.floor for e in flexible if e.frequency is Frequency.MONTHLY)
-        ),
-        "monthly_debt_minimums": baht(
-            sum(d.minimum_payment for d in state.debts if d.balance > 0)
-        ),
-        "monthly_planned_savings": baht(_monthly(state.transfers)),
+        "monthly_income": baht(totals[EventKind.INCOME]),
+        "monthly_essential_expenses": baht(totals[EventKind.ESSENTIAL_EXPENSE]),
+        "monthly_flexible_budget": baht(totals[EventKind.FLEXIBLE_EXPENSE]),
+        "monthly_flexible_minimum": baht(floor),
+        "monthly_debt_minimums": baht(totals[EventKind.DEBT_MINIMUM]),
+        "monthly_planned_savings": baht(totals[EventKind.SAVINGS_TRANSFER]),
     }
 
 
@@ -225,7 +273,7 @@ def _forecast(context: AgentContext, args: ForecastInput) -> dict[str, Any]:
 
 def _insights(context: AgentContext, _: NoInput) -> dict[str, Any]:
     state = context.state
-    end = state.as_of + timedelta(days=29)
+    end = _one_month_ahead(state.as_of)
     upcoming = [
         e for e in build_events(state, state.as_of, end, include_transfers=False)
         if e.kind is not EventKind.INCOME
@@ -354,7 +402,8 @@ def _income_change(context: AgentContext, args: IncomeChangeInput) -> dict[str, 
         "note": "Simulated on a copy. The stored financial state was not changed.",
         "income_change_percent": args.percent,
         "new_monthly_income": baht(_monthly(changed.incomes)),
-        "current_plan": _feasibility_data(changed, 92),
+        "current_plan": _feasibility_data(
+            changed, horizon_days(changed.as_of, args.horizon_months)),
         "replanning": _planning_data(changed, args.horizon_months),
     }
 
@@ -383,13 +432,64 @@ def _unexpected_expense(context: AgentContext, args: UnexpectedExpenseInput) -> 
         "expense_due_on": due.isoformat(),
         "emergency_fund_now": baht(fund),
         "expense_not_covered_by_emergency_fund": baht(max(0, amount - fund)),
-        "current_plan": _feasibility_data(changed, 92),
+        "current_plan": _feasibility_data(
+            changed, horizon_days(changed.as_of, args.horizon_months)),
         "replanning_without_touching_savings": _planning_data(changed, args.horizon_months),
         "limitation": (
             "Replanning here pays the expense from income and unallocated cash only. Using "
             "the emergency fund is a recovery decision that needs the user's approval and "
             "is not simulated yet."
         ),
+    }
+
+
+_NO_SANDBOX = {"error": "SANDBOX_UNAVAILABLE",
+               "detail": "This is a hypothetical view; nothing can be proposed or executed here."}
+
+
+def _request_approval(context: AgentContext, args: ProposeInput) -> dict[str, Any]:
+    if context.sandbox is None:
+        return _NO_SANDBOX
+    result = generate_plans(context.state, horizon_months=args.horizon_months)
+    if result.status is not PlanningStatus.OK:
+        return {"error": result.status.value, "detail": "No plan exists to propose."}
+    plan = next(p for p in result.plans if p.strategy == args.strategy)
+    outcome = context.sandbox.propose(plan, AGENT)
+    return {
+        "ok": outcome.ok, "code": outcome.code, "message": outcome.message,
+        "plan_id": outcome.data.get("plan_id"), "strategy": plan.label,
+        "next_step": "The user must approve or reject this plan in the Sandbox view. "
+                     "The assistant cannot approve it.",
+    }
+
+
+def _execute(context: AgentContext, _: NoInput) -> dict[str, Any]:
+    # The tool takes no id on purpose: a model cannot be trusted to copy one, and the
+    # only thing that may be executed is what the user has approved.
+    if context.sandbox is None:
+        return _NO_SANDBOX
+    usable = [a for a in context.sandbox.store.list_approvals()
+              if a["decision"] == "APPROVED" and a["used_at"] is None]
+    if len(usable) > 1:
+        return {"ok": False, "code": "SEVERAL_APPROVED_PLANS",
+                "message": "More than one approved plan is waiting. The user must choose "
+                           "which to execute in the Sandbox view."}
+    outcome = context.sandbox.execute(usable[0]["id"] if usable else None, AGENT)
+    return {"ok": outcome.ok, "code": outcome.code, "message": outcome.message,
+            **{k: v for k, v in outcome.data.items() if k in ("plan_id", "strategy")}}
+
+
+def _audit(context: AgentContext, args: AuditInput) -> dict[str, Any]:
+    if context.sandbox is None:
+        return _NO_SANDBOX
+    store = context.sandbox.store
+    return {
+        "chain_intact": store.verify_audit_chain(),
+        "entries": [
+            {"seq": e.seq, "time": e.ts, "actor": e.actor, "action": e.action,
+             "code": e.payload.get("code"), "plan_id": e.payload.get("plan_id")}
+            for e in store.list_audit(args.limit)
+        ],
     }
 
 
@@ -420,6 +520,17 @@ def default_registry() -> ToolRegistry:
              "unexpected expense (repair, medical bill) must be paid. Size is an amount in "
              "THB or a percentage of monthly income. Never changes stored data.",
              UnexpectedExpenseInput, _unexpected_expense),
+        Tool("get_audit_history", Tier.READ,
+             "Recent sandbox audit log entries and whether the hash chain is intact.",
+             AuditInput, _audit),
+        Tool("request_plan_approval", Tier.PROPOSE,
+             "Store one of the three validated plans as a proposal and ask the user to "
+             "approve it in the app. Does not approve or apply anything.", ProposeInput,
+             _request_approval),
+        Tool("execute_approved_sandbox_plan", Tier.EXECUTE,
+             "Activate a plan in the sandbox. Works only if the user has already approved "
+             "that plan in the app; otherwise it is refused. Takes no arguments.", NoInput,
+             _execute),
     ):
         registry.register(tool)
     return registry

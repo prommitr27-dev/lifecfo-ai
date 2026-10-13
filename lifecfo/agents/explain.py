@@ -152,6 +152,42 @@ def insights(data: dict[str, Any]) -> str:
     )
 
 
+def approval_request(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return f"I could not propose a plan: {data['detail']}"
+    if not data["ok"]:
+        return f"The plan was not stored: {data['message']}"
+    return (
+        f"I stored the **{data['strategy']}** plan as proposal `{data['plan_id']}`. "
+        "It is waiting for your decision: open the Sandbox view and press Approve or "
+        "Reject. I cannot approve it for you, and nothing has changed yet."
+    )
+
+
+def execution(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return f"I could not execute anything: {data['detail']}"
+    if data["ok"]:
+        return (
+            f"Done. {data['message']} Plan `{data['plan_id']}` was executed under your "
+            "approval and recorded in the audit log. No real account was touched."
+        )
+    return f"Nothing was executed ({data['code']}): {data['message']}"
+
+
+def audit(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return f"The audit log is not available here: {data['detail']}"
+    lines = [
+        f"- #{entry['seq']} {entry['time']} {entry['actor']}: {entry['action']}"
+        + (f" ({entry['code']})" if entry["code"] else "")
+        + (f" {entry['plan_id']}" if entry["plan_id"] else "")
+        for entry in data["entries"]
+    ]
+    chain = "intact" if data["chain_intact"] else "BROKEN: the log was altered"
+    return f"Audit log hash chain: {chain}.\n\n" + ("\n".join(lines) or "- no entries yet")
+
+
 RENDERERS = {
     "get_financial_profile": profile,
     "get_financial_goals": goals,
@@ -159,6 +195,9 @@ RENDERERS = {
     "optimize_financial_plan": plans,
     "simulate_income_change": income_change,
     "simulate_unexpected_expense": unexpected_expense,
+    "request_plan_approval": approval_request,
+    "execute_approved_sandbox_plan": execution,
+    "get_audit_history": audit,
     "get_spending_insights": insights,
 }
 
@@ -170,12 +209,14 @@ HELP = (
     "- **Cash flow**: \"Can I afford my current plan?\"\n"
     "- **Plans**: \"Compare the three plans\"\n"
     "- **What-if**: \"What if my income drops 20%?\" or \"What if I get a 10,000 THB "
-    "repair bill?\""
+    "repair bill?\"\n"
+    "- **Propose**: \"Propose the Balanced plan\" (you then approve it in the Sandbox view)\n"
+    "- **Execute**: \"Execute the approved plan\"\n"
+    "- **Audit**: \"Show the audit log\""
 )
 
-CANNOT_EXECUTE = (
-    "I can't approve or execute anything on my own. I can prepare and explain plans; a "
-    "plan only takes effect after you approve it in the app, and it is then applied in "
-    "the sandbox, never to a real account. Approval and sandbox execution are being added "
-    "in the next milestone."
+CANNOT_APPROVE = (
+    "I can't approve a plan or move money on my own. I can prepare, explain, and propose "
+    "plans; a plan only takes effect after you press Approve in the Sandbox view, and it "
+    "is then applied in the sandbox, never to a real account."
 )

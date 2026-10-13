@@ -10,7 +10,7 @@ that are not implemented yet; see the roadmap for the current state.
    has no code path that could overwrite real data.
 2. **Services are the only write path.** Both the UI and the agent change state
    through service functions that validate, require approval, and write an
-   audit record. *(planned, M3)*
+   audit record.
 3. **The agent sees tools, not tables.** The LLM calls registered tools with
    typed inputs and outputs. It never computes money and has no tool that can
    approve a plan. *(planned, M8)*
@@ -65,7 +65,7 @@ Profile + Goals
 | `lifecfo/domain` | Pydantic models, integer money, injectable clock, YAML loader | M1 (done) |
 | `lifecfo/cashflow` | Daily forecast over the envelope ledger, feasibility classification | M1 (done) |
 | `lifecfo/optimization` | LP formulation, three strategies, plan validator | M2 (done) |
-| `lifecfo/services`, `lifecfo/sandbox`, `lifecfo/database` | Approval, idempotent execution, audit log, persistence | M3 |
+| `lifecfo/services`, `lifecfo/database` | Approval, idempotent execution, time advance, hash-chained audit log, SQLite persistence | M3 (done) |
 | `lifecfo/shockproof` | Shock definitions, simulation, risk indicators | M4 |
 | `lifecfo/recovery` | Recovery options, goal delays, reserve rebuild schedule | M5 |
 | `lifecfo/events`, `lifecfo/rewards` | Event bus, XP rules, streak state machine, missions | M6 |
@@ -109,8 +109,9 @@ this month's contribution can never be counted twice.
 Implemented: tiers 0 and 1 (`get_financial_profile`, `get_financial_goals`,
 `get_spending_insights`, `get_cash_flow_forecast`, `optimize_financial_plan`,
 `simulate_income_change`, `simulate_unexpected_expense`). The chat keeps the
-last six messages as context. Tiers 2 and 3 arrive with approval and the sandbox
-(M3); the remaining tools in the table are planned. Every tool has a Pydantic
+last six messages as context. Tiers 2 and 3 are implemented as
+`request_plan_approval` and `execute_approved_sandbox_plan`; there is no tool for
+approving. Tools in the table that are not named here are planned. Every tool has a Pydantic
 input model, and the registry refuses any call above the agent's tier.
 
 The agent has two implementations behind the same registry. The offline agent

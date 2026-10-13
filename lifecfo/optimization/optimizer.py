@@ -63,6 +63,11 @@ def _periods(start: date, months: int) -> list[tuple[date, date]]:
     return out
 
 
+def horizon_days(start: date, months: int) -> int:
+    """Days from `start` to the end of the last month of a `months`-month plan."""
+    return (_periods(start, months)[-1][1] - start).days + 1
+
+
 class _Period:
     """Cumulative cash figures, in baht, for each event day of one month."""
 

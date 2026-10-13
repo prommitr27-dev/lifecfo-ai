@@ -15,6 +15,12 @@ def no_llm_provider(monkeypatch):
     monkeypatch.setenv("LIFECFO_LLM_PROVIDER", "none")
 
 
+@pytest.fixture(autouse=True)
+def isolated_sandbox_db(monkeypatch, tmp_path):
+    """Each test gets its own sandbox database file."""
+    monkeypatch.setenv("LIFECFO_DB_PATH", str(tmp_path / "sandbox.db"))
+
+
 @pytest.fixture
 def demo_state() -> FinancialState:
     return load_state(DEMO_PROFILE)

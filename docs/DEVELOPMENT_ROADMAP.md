@@ -14,7 +14,7 @@ evidence are core deliverables, not an add-on.
 | M0 | Repository and skeleton | `pytest` and the Streamlit app run in CI | 13 Oct | Done |
 | M1 | Domain model and cash flow engine | Daily forecast matches hand-calculated values | 13 Oct | Done |
 | M2 | Goal optimization, three strategies | Every plan passes the validator; identical plans are explained | 14 Oct | Done |
-| M3 | Approval, sandbox, audit, tool permission tiers | Unapproved execution refused; duplicate execution creates nothing | 14 Oct | Next |
+| M3 | Approval, sandbox, audit, tool permission tiers | Unapproved execution refused; duplicate execution creates nothing | 14 Oct | Done |
 | M4 | ShockProof | Demo steps 4 to 5: a 20% income cut is detected as infeasible | 15 Oct | |
 | M5 | Recovery engine | Demo steps 10 to 12: 10,000 THB emergency yields three recovery plans | 15 Oct | |
 | M6 | Rewards engine | No duplicate XP; protected streak follows the rules; opt-out records nothing | 16 Oct | |

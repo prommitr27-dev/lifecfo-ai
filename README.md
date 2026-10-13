@@ -27,8 +27,9 @@ investment advice.
 | M1 | Domain model, envelope ledger, daily cash flow forecast, feasibility check | Done |
 | M2 | Goal optimization, three validated planning strategies, plan validator | Done |
 | AI layer | Provider-agnostic LLM access (Gemini free tier, Groq free plan, local Ollama, offline), agent tools with permission tiers, offline agent, chat view | Done (read and compute tools) |
-| M3 | Approval, sandbox execution, audit log | Next |
-| M4 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
+| M3 | User approval, sandbox execution, idempotency, hash-chained audit log, Sandbox view | Done |
+| M4, M5 | ShockProof and recovery engine | Next (waiting on economics decisions) |
+| M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
 
@@ -59,6 +60,8 @@ lifecfo/cashflow/    Daily forecast and feasibility check
 lifecfo/optimization/  LP planner, three strategies, plan validator
 lifecfo/llm/         Provider-agnostic LLM client and settings
 lifecfo/agents/      Tool registry with permission tiers, offline and LLM agents
+lifecfo/services/    Sandbox service: the only code path that changes state
+lifecfo/database/    SQLite store and hash-chained audit log
 scripts/             Offline demo
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
@@ -69,6 +72,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 ## Documentation
 
 - [System architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
+- [Security design](docs/SECURITY_DESIGN.md)
 - [AI providers and zero-cost setup](docs/AI_PROVIDERS.md)
 - [Financial model](docs/financial_model/FINANCIAL_MODEL.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
