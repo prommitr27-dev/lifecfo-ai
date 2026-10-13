@@ -1,8 +1,9 @@
 """LifeCFO AI: Streamlit entry point.
 
 Current scope (M1, M2): the daily cash flow forecast with its feasibility
-check, and the Personal CFO comparison of three validated plans. The what-if
-control works on a copy of the state and never changes stored data.
+check, the Personal CFO comparison of three validated plans, and the AI CFO
+chat. The what-if control works on a copy of the state and never changes
+stored data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
 """
 
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from lifecfo.agents import AgentContext, AgentReply, build_agent
 from lifecfo.cashflow import (
     FeasibilityStatus,
     check_feasibility,
@@ -19,10 +21,11 @@ from lifecfo.cashflow import (
 from lifecfo.domain.loader import load_state
 from lifecfo.domain.models import FinancialState
 from lifecfo.domain.money import SATANG_PER_THB, format_thb
+from lifecfo.llm import LLMSettings, load_env_file
 from lifecfo.optimization import PlanningResult, PlanningStatus, generate_plans
 
 PROFILE = Path(__file__).resolve().parents[1] / "data" / "synthetic" / "profile_demo.yaml"
-VIEWS = ["Cash flow", "Personal CFO"]
+VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat"]
 
 
 @st.cache_data(max_entries=32)
@@ -32,6 +35,21 @@ def plan_for(state_json: str, horizon_months: int) -> PlanningResult:
 
 def baht(satang: int) -> float:
     return satang / SATANG_PER_THB
+
+
+def show_reply(reply: AgentReply) -> None:
+    if reply.notice:
+        st.caption(f":material/info: {reply.notice}")
+    if reply.trace:
+        with st.expander(f"Tools used: {', '.join(r.name for r in reply.trace)}", type="compact"):
+            for result in reply.trace:
+                tier = result.tier.name if result.tier is not None else "none"
+                with st.expander(f"{result.name} (tier {tier})", type="step"):
+                    st.json({"arguments": result.arguments, "ok": result.ok,
+                             "result": result.data}, expanded=False)
+    st.markdown(reply.text)
+    source = "Offline engine" if reply.mode == "offline" else f"{reply.provider} / {reply.model}"
+    st.caption(f"Answered by: {source}")
 
 
 st.set_page_config(page_title="LifeCFO AI", page_icon=":material/savings:", layout="wide")
@@ -106,6 +124,38 @@ if view == "Cash flow":
             ]
         )
         st.dataframe(events, hide_index=True, alt="Scheduled cash events")
+
+elif view == "AI CFO chat":
+    load_env_file(Path(__file__).resolve().parents[1] / ".env")
+    settings = LLMSettings.from_env()
+    agent = build_agent(settings)
+    if settings.problem:
+        st.warning(f"AI provider is not usable ({settings.problem}) Running in offline mode.")
+    elif settings.uses_llm:
+        st.caption(
+            f"AI provider: {settings.preset.label}, model `{settings.model}`. Calculations "
+            "still come from the engines; if the provider fails, the offline engine answers."
+        )
+    else:
+        st.caption("Offline mode: no LLM and no network. Answers are built from engine results.")
+
+    history = st.session_state.setdefault("chat", [])
+    for entry in history:
+        with st.chat_message(entry["role"]):
+            if entry["role"] == "user":
+                st.markdown(entry["text"])
+            else:
+                show_reply(entry["reply"])
+
+    if prompt := st.chat_input("Ask about your plan, goals, bills, or a what-if",
+                               submit_mode="disable"):
+        history.append({"role": "user", "text": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        with st.chat_message("assistant"):
+            reply = agent.reply(AgentContext(state), prompt)
+            show_reply(reply)
+        history.append({"role": "assistant", "reply": reply})
 
 else:
     horizon_months = st.select_slider("Horizon (months)", options=[6, 12, 18, 24], value=12)

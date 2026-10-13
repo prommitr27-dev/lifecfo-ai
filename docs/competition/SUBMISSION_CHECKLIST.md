@@ -33,7 +33,7 @@ submitting.
 | 3 | Demo video | Optional, at most 5 minutes | Link in README | Not started |
 | 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | In progress |
 | 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Not started |
-| 6 | Execution evidence | Simulated-account or sandbox operation logs and demo video | `docs/competition/evidence/` | Not started |
+| 6 | Execution evidence | Simulated-account or sandbox operation logs and demo video | `docs/competition/evidence/` | Offline agent transcript saved; sandbox logs after M3 |
 
 ## Before submitting
 

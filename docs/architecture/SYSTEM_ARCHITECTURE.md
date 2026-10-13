@@ -69,7 +69,8 @@ Profile + Goals
 | `lifecfo/shockproof` | Shock definitions, simulation, risk indicators | M4 |
 | `lifecfo/recovery` | Recovery options, goal delays, reserve rebuild schedule | M5 |
 | `lifecfo/events`, `lifecfo/rewards` | Event bus, XP rules, streak state machine, missions | M6 |
-| `lifecfo/agents`, `lifecfo/security` | Tool registry with permission tiers, agents, explanation checker | M8 |
+| `lifecfo/llm` | Provider-agnostic client (Gemini, Groq, Ollama, custom), settings from environment, error classification | Done |
+| `lifecfo/agents` | Tool registry with permission tiers, offline deterministic agent, LLM agent with verified output and fallback | Read and compute tiers done; propose and execute tiers with M3 |
 | `lifecfo/evaluation` | Baselines and scenario runner | M9 |
 
 Changes from the structure proposed in the brief: `financial/` became
@@ -103,9 +104,21 @@ this month's contribution can never be counted twice.
 | `AuditLog` *(M3)* | ts, actor, action, payload, prev_hash | Append-only, hash-chained |
 | `RewardEvent`, `Streak`, `Mission`, `Badge` *(M6)* | event_id (unique), xp, status | Streak status: `ACTIVE / PROTECTED / PAUSED / BROKEN` |
 
-## 6. Agent tools and permission tiers *(planned)*
+## 6. Agent tools and permission tiers
 
-Every tool has Pydantic input and output schemas and is written to the audit log.
+Implemented: tiers 0 and 1 (`get_financial_profile`, `get_financial_goals`,
+`get_spending_insights`, `get_cash_flow_forecast`, `optimize_financial_plan`,
+`simulate_income_change`). Tiers 2 and 3 arrive with approval and the sandbox
+(M3); the remaining tools in the table are planned. Every tool has a Pydantic
+input model, and the registry refuses any call above the agent's tier.
+
+The agent has two implementations behind the same registry. The offline agent
+routes by keyword and renders fixed templates. The LLM agent runs a
+tool-calling loop on any provider; its final text is checked so that every
+figure of 100 or more appears in a tool result, and on any provider error or
+failed check the offline agent answers instead. No provider is ever selected
+automatically, and nothing falls back to a paid service. See
+`docs/AI_PROVIDERS.md`.
 
 | Tier | Tools | Effect |
 |---|---|---|

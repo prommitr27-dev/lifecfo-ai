@@ -26,7 +26,8 @@ investment advice.
 | M0 | Repository, tooling, CI, documentation skeleton | Done |
 | M1 | Domain model, envelope ledger, daily cash flow forecast, feasibility check | Done |
 | M2 | Goal optimization, three validated planning strategies, plan validator | Done |
-| M3 | Approval, sandbox execution, audit log, tool permission tiers | Next |
+| AI layer | Provider-agnostic LLM access (Gemini free tier, Groq free plan, local Ollama, offline), agent tools with permission tiers, offline agent, chat view | Done (read and compute tools) |
+| M3 | Approval, sandbox execution, audit log | Next |
 | M4 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
@@ -39,8 +40,15 @@ uv run pytest
 uv run streamlit run app/main.py
 ```
 
-The app and the test suite run in deterministic mock mode by default and need
-no API key. See `.env.example` for the optional LLM settings.
+The app, the tests, and the demo run with **no API key, no paid service, and no
+network**. An LLM is optional; see [docs/AI_PROVIDERS.md](docs/AI_PROVIDERS.md)
+for the free options (local Ollama, Groq free plan, Gemini free tier).
+
+Offline demo of the agent on synthetic data:
+
+```bash
+uv run python scripts/demo_offline.py
+```
 
 ## Repository layout
 
@@ -49,6 +57,9 @@ app/                 Streamlit UI
 lifecfo/domain/      Shared models, money, clock, YAML loader
 lifecfo/cashflow/    Daily forecast and feasibility check
 lifecfo/optimization/  LP planner, three strategies, plan validator
+lifecfo/llm/         Provider-agnostic LLM client and settings
+lifecfo/agents/      Tool registry with permission tiers, offline and LLM agents
+scripts/             Offline demo
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
 tests/               unit, integration, and expected-value scenario tests
@@ -58,6 +69,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 ## Documentation
 
 - [System architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
+- [AI providers and zero-cost setup](docs/AI_PROVIDERS.md)
 - [Financial model](docs/financial_model/FINANCIAL_MODEL.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Team tasks and interfaces](docs/TEAM_TASKS.md)

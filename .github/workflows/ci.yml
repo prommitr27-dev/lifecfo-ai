@@ -20,4 +20,4 @@ jobs:
       - run: uv run ruff check .
       - run: uv run pytest
         env:
-          LIFECFO_AGENT_MODE: mock
+          LIFECFO_LLM_PROVIDER: none

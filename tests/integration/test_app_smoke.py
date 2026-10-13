@@ -39,3 +39,13 @@ def test_personal_cfo_view_reports_essential_shortfall_without_a_plan():
     assert not at.exception
     assert any("ESSENTIAL_SHORTFALL" in e.value for e in at.error)
     assert len(at.dataframe) == 0
+
+
+def test_chat_view_answers_offline_with_tool_trace():
+    at = run_app("AI CFO chat")
+    assert not at.exception
+    at.chat_input[0].set_value("What if my income drops 20%?").run()
+    assert not at.exception
+    text = " ".join(m.value for m in at.markdown)
+    assert "Hypothetical scenario" in text and "24,000 THB" in text
+    assert any("Offline engine" in c.value for c in at.caption)
