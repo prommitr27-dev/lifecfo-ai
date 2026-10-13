@@ -25,8 +25,9 @@ investment advice.
 |---|---|---|
 | M0 | Repository, tooling, CI, documentation skeleton | Done |
 | M1 | Domain model, envelope ledger, daily cash flow forecast, feasibility check | Done |
-| M2 | Goal optimization and three planning strategies | Next |
-| M3 to M9 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
+| M2 | Goal optimization, three validated planning strategies, plan validator | Done |
+| M3 | Approval, sandbox execution, audit log, tool permission tiers | Next |
+| M4 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
 
@@ -47,6 +48,7 @@ no API key. See `.env.example` for the optional LLM settings.
 app/                 Streamlit UI
 lifecfo/domain/      Shared models, money, clock, YAML loader
 lifecfo/cashflow/    Daily forecast and feasibility check
+lifecfo/optimization/  LP planner, three strategies, plan validator
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
 tests/               unit, integration, and expected-value scenario tests

@@ -57,22 +57,85 @@ leisure 3,000 (floor 1,000); transfers 9,000 on day 2; emergency fund 6,000.
 Hand-calculated daily balances for the baseline are in
 `tests/scenarios/expected/profile_demo_daily.csv` and are checked on every test run.
 
-## 2. Goal optimization (draft for review, M2)
+## 2. Goal optimization (implemented, M2)
 
-- **Variables**: monthly contribution to each envelope `x[g,t]`, flexible
-  spending `f[t]`, and a shortfall variable per goal.
-- **Hard constraints**: essentials and debt minimums paid in full; cash never
-  negative; contributions never exceed the remaining target; flexible spending
-  not below its floor.
-- **Priority tiers**: (0) essentials, and if these cannot be met the solver stops
-  and reports the shortfall; (1) emergency reserve floor; (2) goals by priority
-  and deadline.
-- **Three strategies** are the same LP with different objective weights from
-  `config/strategy_weights.yaml`. If two strategies return the same allocation,
-  the system reports the binding constraints instead of manufacturing a difference.
-- **After solving**: round to whole baht, re-check hard constraints, then run the
-  daily forecast. Only a plan that passes all three is offered to the user.
-- **Baselines for evaluation**: fixed budget, simple priority waterfall, no replanning.
+Code: `lifecfo/optimization/`. Tests: `tests/unit/test_optimization.py`.
+Parameters: `config/strategy_weights.yaml` (draft assumptions, owned by Member 2).
+
+One linear program serves all three strategies; only the parameters differ. It
+is solved with `scipy.optimize.linprog` (HiGHS) over calendar months.
+
+### Variables (per month t)
+
+| Symbol | Meaning |
+|---|---|
+| `x[e,t]` | Contribution to envelope `e` (emergency reserve or a goal), swept on the last day of the month |
+| `th[t]` | Share of the cuttable part of flexible spending that is kept, from 0 to 1 |
+| `s[e,t]` | How far envelope `e` is behind its ramp at the end of month t |
+
+### Hard constraints
+
+1. **Liquidity.** Unallocated cash is non-negative on every day with a scheduled
+   event and after each month-end sweep. Essentials and debt minimums are always
+   paid in full, so they appear as constants, not variables. This is what stops
+   a sweep from taking money needed for bills due before the next payday.
+2. **Caps.** An envelope never receives more than it still needs (goal target,
+   or `reserve_target` for the emergency envelope).
+3. **Flexible floor.** Flexible spending never drops below `min_amount`.
+
+If cash runs out even with no savings and flexible spending at its floor, no
+plan is produced. The result is `ESSENTIAL_SHORTFALL`, or
+`REQUIRES_RESERVE_DRAWDOWN` when existing envelopes could cover the gap; using
+savings is a recovery decision and is handled by the recovery engine (M5).
+
+### Ramps
+
+Each envelope has a ramp: the amount it should hold by the end of each month.
+A goal's ramp rises linearly to its target at the last sweep on or before its
+deadline (or the end of the horizon if it has no deadline). The reserve's ramp
+rises to `reserve_target` over `reserve_ramp_months`.
+
+### Objective (minimised)
+
+```
+sum over e,t of  weight[e] * s[e,t]                      being behind a ramp
++ sum over t of  flexible_cut_weight * cut[t]            cutting lifestyle spending
+- sum over e,t of  scale * bonus[e] * (T - t) * x[e,t]   where surplus goes first
+```
+
+`weight[e]` is `reserve_weight` for the reserve and
+`goal_weight * priority_decay^(priority - 1)` for a goal. The last term is tiny
+by design: it only decides where money goes once every ramp is met.
+
+| Strategy | Reserve ramp | What it does on the demo profile |
+|---|---|---|
+| Safety First | 1 month | Cuts leisure to its floor and fills the reserve first (reached Dec 2026), then goals |
+| Balanced | 6 months | Keeps leisure, builds reserve and goals side by side (reserve reached Apr 2027) |
+| Goal First | 12 months | Puts surplus into goals by priority (both done Apr 2027), reserve last (May 2027) |
+
+### Rounding and validation
+
+Cumulative contributions are rounded down to whole baht, which can only leave
+more cash on hand than the LP solution. Flexible amounts are rounded down too.
+Every plan is then passed to `validate_plan`, which checks the state hash, caps,
+flexible bounds, and the daily forecast. A plan that fails is never returned.
+The same validator will check any allocation proposed through the agent.
+
+### Identical plans
+
+When two strategies return the same allocations (for example a single goal and
+no flexible spending), the result carries an `IdenticalPlans` record with the
+facts that explain it: months in which all free cash is allocated, months with
+flexible spending at its floor, and envelopes that reach their target. Nothing
+is altered to make plans look different.
+
+### Known limitations
+
+- Linear objective: allocations move in priority order rather than being
+  smoothed, and near-ties are decided by the solver deterministically.
+- Savings are swept once, at month end. Earlier transfers are not modelled.
+- Goals without a deadline are ramped to the end of the planning horizon.
+- Weights are draft assumptions and have not been calibrated against user preferences.
 
 ## 3. Open questions for Member 2
 

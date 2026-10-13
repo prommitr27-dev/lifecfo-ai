@@ -64,7 +64,7 @@ Profile + Goals
 |---|---|---|
 | `lifecfo/domain` | Pydantic models, integer money, injectable clock, YAML loader | M1 (done) |
 | `lifecfo/cashflow` | Daily forecast over the envelope ledger, feasibility classification | M1 (done) |
-| `lifecfo/optimization` | LP formulation, three strategies, plan validator | M2 |
+| `lifecfo/optimization` | LP formulation, three strategies, plan validator | M2 (done) |
 | `lifecfo/services`, `lifecfo/sandbox`, `lifecfo/database` | Approval, idempotent execution, audit log, persistence | M3 |
 | `lifecfo/shockproof` | Shock definitions, simulation, risk indicators | M4 |
 | `lifecfo/recovery` | Recovery options, goal delays, reserve rebuild schedule | M5 |

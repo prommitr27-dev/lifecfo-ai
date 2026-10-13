@@ -1,19 +1,45 @@
-# Objective weights for the three planning strategies.
+# Parameters for the three planning strategies.
 # Owner: Member 2 (Financial Modeling).
-# DRAFT design assumptions, not calibrated values. Not read by any code until M2.
-# Higher weight means the optimizer tries harder to avoid a shortfall in that area.
+# DRAFT design assumptions, not calibrated values. Explained in
+# docs/financial_model/FINANCIAL_MODEL.md, section 2.
+#
+# reserve_ramp_months   Months over which the emergency reserve should reach
+#                       its target. 1 means "as soon as possible".
+# reserve_weight        Cost of being 1 THB behind the reserve ramp for a month.
+# goal_weight           Cost of being 1 THB behind a goal's ramp for a month,
+#                       for a priority-1 goal. Lower priorities are multiplied
+#                       by priority_decay per level.
+# flexible_cut_weight   Cost of cutting 1 THB of flexible spending once.
+# surplus_reserve/goal  Where money left after all ramps are met goes first
+#                       (larger value wins; goals are again scaled by priority).
 
-safety_first:
-  reserve_shortfall: 10
-  goal_shortfall: 1
-  flexible_cut: 1
+priority_decay: 0.5
+surplus_bonus_scale: 0.001
 
-balanced:
-  reserve_shortfall: 4
-  goal_shortfall: 4
-  flexible_cut: 2
+strategies:
+  SAFETY_FIRST:
+    label: Safety First
+    reserve_ramp_months: 1
+    reserve_weight: 10
+    goal_weight: 1
+    flexible_cut_weight: 2
+    surplus_reserve: 3
+    surplus_goal: 1
 
-goal_first:
-  reserve_shortfall: 2
-  goal_shortfall: 10
-  flexible_cut: 1
+  BALANCED:
+    label: Balanced
+    reserve_ramp_months: 6
+    reserve_weight: 5
+    goal_weight: 4
+    flexible_cut_weight: 15
+    surplus_reserve: 1
+    surplus_goal: 1.5
+
+  GOAL_FIRST:
+    label: Goal First
+    reserve_ramp_months: 12
+    reserve_weight: 2
+    goal_weight: 10
+    flexible_cut_weight: 20
+    surplus_reserve: 0.5
+    surplus_goal: 2
