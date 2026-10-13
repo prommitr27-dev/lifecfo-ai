@@ -17,21 +17,31 @@ which tool to call, and word the explanation.
 simulated HTTP transport (success, tool calls, authentication errors, missing
 models, rate limits, quota exhaustion, outages, malformed answers).
 
-Live check against the Gemini free tier on 14 October 2026: the key was
-accepted, the model list was returned, a plain request was answered, and the
-model chose the correct tool with correct arguments. The follow-up request was
-at first rejected because Gemini requires its "thought signature" to be sent
-back with each tool call; the client now echoes provider-specific tool-call
-fields. A complete tool round trip has **not** yet been confirmed live, because
-the free quota for the model ran out during testing. Groq and Ollama have not
-been exercised live.
+**Live check, GroqCloud free plan, 14 October 2026** (model `openai/gpt-oss-120b`):
+complete tool round trips worked. The model chose the right tool and arguments,
+received the result, and answered with figures that all passed the number
+check; answers took 2 to 4 seconds. A prompt-injection request to approve a
+plan and transfer money was declined. Two fixes came out of this check: Groq
+rejects the default Python user agent, so the client now sends its own; and the
+number check now reads thousands grouped with spaces ("22 625").
+The fourth question within one minute hit the free rate limit and was answered
+offline, so expect roughly three questions a minute on this model.
 
-Observed on that free-tier key (will differ by account and over time):
-`gemini-3.8-flash` reported limits of 5 and then 20 requests in its quota
-errors, which is consistent with a small per-minute and per-day allowance;
-responses took 10 to 20 seconds; several models returned HTTP 503 or timed
-out. One chat question costs at least two requests. Plan live demos around
-this: the offline mode is the dependable path.
+**Live check, Gemini free tier, same day** (model `gemini-3.8-flash`): the key
+was accepted and the model chose the correct tool. Gemini requires its "thought
+signature" to be sent back with each tool call; the client now echoes
+provider-specific tool-call fields. A complete round trip was not confirmed
+because the free quota ran out: the quota errors reported limits of 5 and then
+20 requests, consistent with a small per-minute and per-day allowance.
+Responses took 10 to 20 seconds and several models returned HTTP 503.
+
+Ollama has not been exercised live.
+
+**Known limitation.** The number check catches invented figures, not invented
+statements. In one live answer a model described the situation "before" a
+change incorrectly even though every number was right. The system prompt now
+forbids describing anything a tool did not return, but a model can still do
+it. For the recorded demo and for evidence, use offline mode.
 
 ## How switching works
 
@@ -124,7 +134,7 @@ key. Check on the console whether a payment method is required in your country.
 
 ```
 LIFECFO_LLM_PROVIDER=groq
-LIFECFO_LLM_MODEL=<a tool-capable model from the Groq console>
+LIFECFO_LLM_MODEL=<a tool-capable model from the Groq console, for example openai/gpt-oss-120b>
 GROQ_API_KEY=<your key>
 ```
 
@@ -191,4 +201,5 @@ the synthetic profile. Nothing is sent in offline mode.
 1. Record the demo video in offline mode so every run is identical.
 2. Show natural-language chat live with Ollama, which needs no internet at the
    venue and keeps data on the laptop.
-3. Keep a Groq or Gemini key as a spare for a machine without a GPU.
+3. Groq is the better hosted option on the evidence so far (fast, round trips
+   confirmed). Keep it for a short live segment and pause between questions.

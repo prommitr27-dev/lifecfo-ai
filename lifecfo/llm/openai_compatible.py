@@ -91,7 +91,8 @@ class OpenAICompatibleClient:
                 for t in tools
             ]
             body["tool_choice"] = "auto"
-        headers = {"Content-Type": "application/json"}
+        # Some providers (Groq, behind Cloudflare) reject the default urllib user agent.
+        headers = {"Content-Type": "application/json", "User-Agent": "lifecfo-ai/0.1"}
         if settings.api_key:
             headers["Authorization"] = f"Bearer {settings.api_key}"
 

@@ -98,6 +98,7 @@ def test_request_shape_and_plain_answer():
     call = transport.calls[0]
     assert call["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert call["headers"]["Authorization"] == "Bearer secret-key"
+    assert call["headers"]["User-Agent"].startswith("lifecfo-ai/")
     assert call["body"]["model"] == "test-model" and call["body"]["temperature"] == 0
     assert call["body"]["tools"][0]["function"]["name"] == "t"
 

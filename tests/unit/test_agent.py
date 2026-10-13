@@ -242,3 +242,10 @@ def test_build_agent_selects_by_settings():
     assert isinstance(build_agent(broken), DeterministicAgent)
     ready = LLMSettings.from_env({"LIFECFO_LLM_PROVIDER": "ollama", "LIFECFO_LLM_MODEL": "m"})
     assert isinstance(build_agent(ready), LLMAgent)
+
+
+def test_number_check_reads_space_grouped_thousands(context):
+    result = default_registry().call(context, "get_financial_profile", {}, Tier.READ)
+    assert unverified_numbers("รายได้ 30 000 ฿ ต่อเดือน", "", (result,)) == []
+    assert unverified_numbers("Income is 30 000 THB", "", (result,)) == []
+    assert unverified_numbers("Income is 45 000 THB", "", (result,)) == [45000.0]
