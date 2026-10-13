@@ -1,0 +1,19 @@
+name: Question or problem
+description: Ask Member 1 something, or report a number that looks wrong
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: dropdown
+    id: member
+    attributes:
+      label: Who are you?
+      options: ["Member 1", "Member 2", "Member 3"]
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need?
+      description: Thai is fine here. Paste the file name and the numbers involved if there are any.
+    validations:
+      required: true

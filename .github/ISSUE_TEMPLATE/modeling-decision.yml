@@ -1,0 +1,40 @@
+name: Modeling decision
+description: Record a decision about weights, thresholds, rules, or assumptions (Member 2, Member 3)
+title: "[Decision] "
+labels: ["modeling"]
+body:
+  - type: dropdown
+    id: member
+    attributes:
+      label: Who are you?
+      options: ["Member 1", "Member 2", "Member 3"]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Strategy weights (config/strategy_weights.yaml)
+        - Risk thresholds (config/risk_thresholds.yaml)
+        - Reward rules (config/reward_rules.yaml)
+        - Financial model assumption
+        - Shock definition
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: The value or rule you want, as precisely as possible.
+      placeholder: "Balanced: reserve_ramp_months = 4"
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reasoning
+      description: Two or three sentences. Add a source link if there is one, or say it is an assumption.
+    validations:
+      required: true

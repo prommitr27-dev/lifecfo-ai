@@ -46,7 +46,9 @@ those files.
   competitors with sources and dates.
 - Does not need to write Python. Same rule as Member 2 for code in `lifecfo/`.
 
-Full deliverables per milestone are in `docs/TEAM_TASKS.md`.
+Full deliverables per milestone are in `docs/TEAM_TASKS.md`. Step-by-step guides
+in Thai for Members 2 and 3 are in `docs/team/`; point them there, and prefer
+the templates in `docs/team/templates/` over inventing new file formats.
 
 ## Working rules for everyone
 

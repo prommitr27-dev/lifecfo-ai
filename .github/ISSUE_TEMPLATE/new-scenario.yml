@@ -1,0 +1,64 @@
+name: New test scenario
+description: Submit a synthetic profile or shock scenario without editing files (Member 3, Member 2)
+title: "[Scenario] "
+labels: ["scenario"]
+body:
+  - type: markdown
+    attributes:
+      value: Synthetic data only. Never enter anyone's real financial information.
+  - type: dropdown
+    id: member
+    attributes:
+      label: Who are you?
+      options: ["Member 1", "Member 2", "Member 3"]
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Short scenario name
+      placeholder: student_low_income
+    validations:
+      required: true
+  - type: textarea
+    id: income
+    attributes:
+      label: Income
+      description: Amount in THB and the day of the month it arrives.
+      placeholder: "Salary 12,000 on day 28"
+    validations:
+      required: true
+  - type: textarea
+    id: expenses
+    attributes:
+      label: Expenses
+      description: One per line. Name, amount, due day, ESSENTIAL or FLEXIBLE (and the minimum if flexible).
+      placeholder: |
+        Rent 4,500 day 5 ESSENTIAL
+        Food 4,000 day 1 ESSENTIAL
+        Leisure 1,500 day 1 FLEXIBLE min 500
+    validations:
+      required: true
+  - type: textarea
+    id: savings
+    attributes:
+      label: Starting balances and goals
+      description: Unallocated cash, emergency fund and its target, and each goal with target, priority, and deadline.
+      placeholder: |
+        Unallocated 2,000; emergency fund 0, target 10,000
+        Goal: tuition 15,000, priority 1, deadline 2027-05-31
+    validations:
+      required: true
+  - type: textarea
+    id: shock
+    attributes:
+      label: Shock (optional)
+      description: What happens, how much, and when.
+      placeholder: "Emergency medical expense 6,000 on 2026-11-12"
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should the system conclude?
+      description: For example "plan becomes infeasible", "essentials cannot be paid", "travel goal delayed by 2 months".
+    validations:
+      required: true

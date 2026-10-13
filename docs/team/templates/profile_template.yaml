@@ -1,0 +1,42 @@
+# Profile template. Copy this into data/synthetic/profile_<name>.yaml and edit.
+# Synthetic data only. Money is in baht; keys end with _thb.
+# Every id must be unique within its section.
+
+as_of: 2026-11-01            # first day of the simulation (YYYY-MM-DD)
+timezone: Asia/Bangkok
+reserve_target_thb: 20000    # emergency fund target; 0 if none
+
+envelopes:
+  # Exactly one UNALLOCATED envelope is required: money not yet assigned.
+  - {id: unallocated, kind: UNALLOCATED, balance_thb: 0}
+  # At most one EMERGENCY envelope.
+  - {id: emergency, kind: EMERGENCY, balance_thb: 6000}
+  # One GOAL envelope per goal; goal_id must match a goal below.
+  - {id: env-laptop, kind: GOAL, goal_id: laptop, balance_thb: 0}
+
+incomes:
+  # day_of_month 29 to 31 falls on the last day of shorter months.
+  - {id: salary, name: Salary, amount_thb: 30000, day_of_month: 1}
+  # One-off income example:
+  # - {id: bonus, name: Bonus, amount_thb: 5000, frequency: ONE_TIME, on_date: 2026-12-25}
+
+expenses:
+  # ESSENTIAL expenses are always paid in full.
+  - {id: rent, name: Rent, category: ESSENTIAL, amount_thb: 9000, day_of_month: 5}
+  - {id: food, name: Food, category: ESSENTIAL, amount_thb: 6000, day_of_month: 2}
+  # FLEXIBLE expenses can be cut down to min_amount_thb (0 if omitted).
+  - {id: leisure, name: Leisure, category: FLEXIBLE, amount_thb: 3000, min_amount_thb: 1000, day_of_month: 2}
+
+# Optional. The minimum payment is treated as an obligation.
+# debts:
+#   - {id: card, name: Credit card, balance_thb: 12000, minimum_payment_thb: 2000, day_of_month: 20}
+
+goals:
+  # priority 1 is the most important. deadline is optional.
+  - {id: laptop, name: New laptop, target_thb: 30000, priority: 1, deadline: 2027-08-31}
+
+# Optional: the user's current monthly savings plan. Used by the cash flow
+# check; the optimizer replaces it with its own plan.
+transfers:
+  - {id: t-emergency, envelope_id: emergency, amount_thb: 4000, day_of_month: 2}
+  - {id: t-laptop, envelope_id: env-laptop, amount_thb: 3000, day_of_month: 2}
