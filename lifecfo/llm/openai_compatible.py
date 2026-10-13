@@ -6,6 +6,7 @@ number of times and then reported, never worked around by changing provider.
 """
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -27,6 +28,7 @@ from lifecfo.llm.config import LLMSettings
 Transport = Callable[[str, dict[str, str], bytes, float], tuple[int, dict[str, str], str]]
 
 MAX_RETRY_WAIT_SECONDS = 8.0
+_RETRY_HINT = re.compile(r"retry in ([0-9.]+)\s*s", re.IGNORECASE)
 
 
 def _urllib_transport(
@@ -44,7 +46,7 @@ def _message_payload(message: ChatMessage) -> dict[str, Any]:
     payload: dict[str, Any] = {"role": message.role, "content": message.content or ""}
     if message.tool_calls:
         payload["tool_calls"] = [
-            {"id": call.id, "type": "function",
+            {**call.extra, "id": call.id, "type": "function",
              "function": {"name": call.name, "arguments": json.dumps(call.arguments)}}
             for call in message.tool_calls
         ]
@@ -111,18 +113,29 @@ class OpenAICompatibleClient:
             retryable = last.kind in (LLMErrorKind.RATE_LIMITED, LLMErrorKind.UNAVAILABLE)
             if not retryable or attempt == settings.max_retries:
                 break
-            self._sleep(self._retry_wait(response_headers, attempt))
+            wait = self._retry_wait(response_headers, text, attempt)
+            if wait is None:
+                break  # the provider asked for a long wait; retrying would only burn quota
+            self._sleep(wait)
         assert last is not None
         raise last
 
     @staticmethod
-    def _retry_wait(headers: dict[str, str], attempt: int) -> float:
+    def _retry_wait(headers: dict[str, str], text: str, attempt: int) -> float | None:
+        """Seconds to wait before retrying, or None when the provider wants a long pause."""
+        asked: float | None = None
         retry_after = next((v for k, v in headers.items() if k.lower() == "retry-after"), None)
+        hinted = _RETRY_HINT.search(text)
         try:
-            wait = float(retry_after) if retry_after is not None else 2.0**attempt
+            if retry_after is not None:
+                asked = float(retry_after)
+            elif hinted:
+                asked = float(hinted.group(1))
         except ValueError:
-            wait = 2.0**attempt
-        return min(max(wait, 0.0), MAX_RETRY_WAIT_SECONDS)
+            asked = None
+        if asked is None:
+            return min(2.0**attempt, MAX_RETRY_WAIT_SECONDS)
+        return max(asked, 0.0) if asked <= MAX_RETRY_WAIT_SECONDS else None
 
     def _classify(self, status: int, text: str) -> LLMError:
         lowered = text.lower()
@@ -131,8 +144,11 @@ class OpenAICompatibleClient:
         if status == 404:
             return self._error(LLMErrorKind.MODEL_NOT_FOUND, f"HTTP {status}")
         if status == 429:
+            # Gemini words a per-minute limit as "quota exceeded ... please retry in 39s".
+            temporary = "retry in" in lowered or "per minute" in lowered
             exhausted = any(word in lowered for word in ("quota", "billing", "per day", "daily"))
-            kind = LLMErrorKind.QUOTA_EXHAUSTED if exhausted else LLMErrorKind.RATE_LIMITED
+            kind = (LLMErrorKind.QUOTA_EXHAUSTED if exhausted and not temporary
+                    else LLMErrorKind.RATE_LIMITED)
             return self._error(kind, "HTTP 429")
         if status >= 500:
             return self._error(LLMErrorKind.UNAVAILABLE, f"HTTP {status}")
@@ -152,8 +168,9 @@ class OpenAICompatibleClient:
                 parsed = json.loads(arguments) if isinstance(arguments, str) else arguments
                 if not isinstance(parsed, dict):
                     raise ValueError("tool arguments are not an object")
+                extra = {k: v for k, v in raw.items() if k not in ("id", "type", "function")}
                 calls.append(ToolCall(id=raw.get("id") or f"call_{index}",
-                                      name=function["name"], arguments=parsed))
+                                      name=function["name"], arguments=parsed, extra=extra))
             content = message.get("content")
             if content is not None and not isinstance(content, str):
                 raise ValueError("content is not text")

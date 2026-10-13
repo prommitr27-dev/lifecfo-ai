@@ -20,6 +20,9 @@ class ToolCall(Frozen):
     id: str
     name: str
     arguments: dict[str, Any]
+    # Provider-specific fields that must be sent back unchanged with the call,
+    # such as Gemini's thought signature. Opaque to the rest of the application.
+    extra: dict[str, Any] = {}
 
 
 class ChatMessage(Frozen):

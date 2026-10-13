@@ -129,14 +129,27 @@ def test_errors_that_are_not_retried(status, body, kind):
     assert len(transport.calls) == 1 and waits == []
 
 
-def test_rate_limit_is_retried_with_capped_wait_then_succeeds():
+def test_short_rate_limit_wait_is_honoured_then_succeeds():
     transport = FakeTransport(
-        (429, {"Retry-After": "600"}, '{"error": "rate limit"}'),
+        (429, {"Retry-After": "3"}, '{"error": "rate limit"}'),
         (200, {}, ok_body("done")),
     )
     c, waits = client(transport)
     assert c.complete([ChatMessage(role="user", content="q")]).content == "done"
-    assert waits == [8.0]  # never waits the full ten minutes
+    assert waits == [3.0]
+
+
+@pytest.mark.parametrize(("headers", "body"), [
+    ({"Retry-After": "600"}, '{"error": "rate limit"}'),
+    ({}, '{"error": {"message": "Quota exceeded. Please retry in 39.4s."}}'),
+])
+def test_long_rate_limit_wait_fails_fast_without_spending_more_requests(headers, body):
+    transport = FakeTransport((429, headers, body))
+    c, waits = client(transport)
+    with pytest.raises(LLMError) as raised:
+        c.complete([ChatMessage(role="user", content="q")])
+    assert raised.value.kind is LLMErrorKind.RATE_LIMITED
+    assert len(transport.calls) == 1 and waits == []
 
 
 def test_rate_limit_gives_up_after_limited_retries():
@@ -194,3 +207,22 @@ def test_env_file_never_overrides_existing_variables(tmp_path, monkeypatch):
     assert os.environ["LIFECFO_LLM_PROVIDER"] == "none"
     assert os.environ.pop("NEW_LIFECFO_VAR") == "x"
     load_env_file(tmp_path / "missing.env")  # no error
+
+
+def test_provider_specific_tool_call_fields_are_echoed_back():
+    # Gemini rejects the follow-up request unless its thought signature is returned.
+    raw = [{"id": "c1", "type": "function",
+            "extra_content": {"google": {"thought_signature": "abc"}},
+            "function": {"name": "get_financial_goals", "arguments": "{}"}}]
+    transport = FakeTransport((200, {}, ok_body(None, raw)), (200, {}, ok_body("done")))
+    c, _ = client(transport)
+    first = c.complete([ChatMessage(role="user", content="q")])
+    assert first.tool_calls[0].extra == {"extra_content": {"google": {"thought_signature": "abc"}}}
+    c.complete([
+        ChatMessage(role="user", content="q"),
+        ChatMessage(role="assistant", tool_calls=first.tool_calls),
+        ChatMessage(role="tool", tool_call_id="c1", content="{}"),
+    ])
+    sent = transport.calls[1]["body"]["messages"][1]["tool_calls"][0]
+    assert sent["extra_content"] == {"google": {"thought_signature": "abc"}}
+    assert sent["function"]["name"] == "get_financial_goals"

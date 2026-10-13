@@ -15,10 +15,23 @@ which tool to call, and word the explanation.
 
 **Test status.** The provider client is covered by automated tests against a
 simulated HTTP transport (success, tool calls, authentication errors, missing
-models, rate limits, quota exhaustion, outages, malformed answers). Live calls
-to Gemini, Groq, and Ollama have **not** been exercised yet because no key or
-local model was available when this was written. Expect small provider-specific
-adjustments on first live use.
+models, rate limits, quota exhaustion, outages, malformed answers).
+
+Live check against the Gemini free tier on 14 October 2026: the key was
+accepted, the model list was returned, a plain request was answered, and the
+model chose the correct tool with correct arguments. The follow-up request was
+at first rejected because Gemini requires its "thought signature" to be sent
+back with each tool call; the client now echoes provider-specific tool-call
+fields. A complete tool round trip has **not** yet been confirmed live, because
+the free quota for the model ran out during testing. Groq and Ollama have not
+been exercised live.
+
+Observed on that free-tier key (will differ by account and over time):
+`gemini-3.8-flash` reported limits of 5 and then 20 requests in its quota
+errors, which is consistent with a small per-minute and per-day allowance;
+responses took 10 to 20 seconds; several models returned HTTP 503 or timed
+out. One chat question costs at least two requests. Plan live demos around
+this: the offline mode is the dependable path.
 
 ## How switching works
 
@@ -44,7 +57,7 @@ free and always available, with a short notice in the chat.
 | Provider selected but model or key missing | Warning in the chat view; offline mode |
 | Wrong or revoked key (HTTP 401/403) | Offline answer; notice "rejected the API key" |
 | Model name not found or retired | Offline answer; notice "model is not available" |
-| Rate limit (HTTP 429) | Up to 2 retries, each wait capped at 8 seconds, then offline answer |
+| Rate limit (HTTP 429) | Retried only when the provider asks for a wait of 8 seconds or less (at most 2 retries); otherwise offline answer at once, so retries do not burn free quota |
 | Daily or monthly quota used up | No retry; offline answer |
 | Timeout, no connection, server error | Up to 2 retries, then offline answer |
 | Malformed response, or tool arguments that are not valid | Offline answer, or the validation error is returned to the model |
@@ -133,7 +146,7 @@ Free-tier availability depends on country.
 
 ```
 LIFECFO_LLM_PROVIDER=gemini
-LIFECFO_LLM_MODEL=<a Flash model listed in AI Studio>
+LIFECFO_LLM_MODEL=<a Flash model listed in AI Studio, for example gemini-3.8-flash>
 GEMINI_API_KEY=<your key>
 ```
 

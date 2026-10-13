@@ -6,7 +6,7 @@
     GROQ_API_KEY           for provider "groq"
     LIFECFO_LLM_BASE_URL   override the endpoint; required for "custom"
     LIFECFO_LLM_API_KEY    for provider "custom"
-    LIFECFO_LLM_TIMEOUT    seconds per request (default 30)
+    LIFECFO_LLM_TIMEOUT    seconds per request (default 60)
 
 The application never changes provider by itself. If the selected provider
 fails, the agent falls back to the deterministic no-LLM mode, which is free.
@@ -57,7 +57,7 @@ class LLMSettings(Frozen):
     model: str = ""
     base_url: str | None = None
     api_key: str | None = None
-    timeout_seconds: float = 30.0
+    timeout_seconds: float = 60.0
     max_retries: int = 2
     problem: str | None = None  # why the configuration cannot be used, if so
 
@@ -84,9 +84,9 @@ class LLMSettings(Frozen):
         base_url = (env.get("LIFECFO_LLM_BASE_URL", "").strip() or preset.base_url or "")
         api_key = env.get(preset.api_key_env, "").strip() if preset.api_key_env else ""
         try:
-            timeout = float(env.get("LIFECFO_LLM_TIMEOUT", "30"))
+            timeout = float(env.get("LIFECFO_LLM_TIMEOUT", "") or 60)
         except ValueError:
-            timeout = 30.0
+            timeout = 60.0
 
         problem = None
         if not model:
