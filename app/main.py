@@ -153,7 +153,9 @@ elif view == "AI CFO chat":
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"):
-            reply = agent.reply(AgentContext(state), prompt)
+            past = [(e["role"], e["text"] if e["role"] == "user" else e["reply"].text)
+                    for e in history[:-1]]
+            reply = agent.reply(AgentContext(state), prompt, past)
             show_reply(reply)
         history.append({"role": "assistant", "reply": reply})
 

@@ -78,7 +78,8 @@ def test_tools_never_change_the_state(context):
     before = context.state.model_dump()
     registry = default_registry()
     for spec in registry.specs(Tier.COMPUTE):
-        arguments = {"percent": -20} if spec.name == "simulate_income_change" else {}
+        arguments = {"simulate_income_change": {"percent": -20},
+                     "simulate_unexpected_expense": {"amount_thb": 10000}}.get(spec.name, {})
         assert registry.call(context, spec.name, arguments, Tier.COMPUTE).ok
     assert context.state.model_dump() == before
 
@@ -249,3 +250,78 @@ def test_number_check_reads_space_grouped_thousands(context):
     assert unverified_numbers("รายได้ 30 000 ฿ ต่อเดือน", "", (result,)) == []
     assert unverified_numbers("Income is 30 000 THB", "", (result,)) == []
     assert unverified_numbers("Income is 45 000 THB", "", (result,)) == [45000.0]
+
+
+# --- Unexpected expense, follow-ups, and language ---------------------------------------
+
+
+def test_unexpected_expense_tool_is_hypothetical_and_sized_either_way(context):
+    registry = default_registry()
+    before = context.state.model_dump()
+    by_percent = registry.call(context, "simulate_unexpected_expense",
+                               {"percent_of_monthly_income": 30}, Tier.COMPUTE).data
+    assert by_percent["hypothetical"] is True
+    assert by_percent["expense_amount"] == 9000
+    assert by_percent["expense_not_covered_by_emergency_fund"] == 3000
+    by_amount = registry.call(context, "simulate_unexpected_expense",
+                              {"amount_thb": 10000, "days_from_now": 11}, Tier.COMPUTE).data
+    assert by_amount["expense_due_on"] == "2026-11-12"
+    assert by_amount["expense_not_covered_by_emergency_fund"] == 4000
+    assert by_amount["current_plan"]["status"] == "PLAN_INFEASIBLE"
+    assert context.state.model_dump() == before
+
+
+@pytest.mark.parametrize("arguments", [
+    {}, {"amount_thb": 100, "percent_of_monthly_income": 10}, {"amount_thb": -5},
+])
+def test_unexpected_expense_needs_exactly_one_valid_size(context, arguments):
+    result = default_registry().call(context, "simulate_unexpected_expense", arguments,
+                                     Tier.COMPUTE)
+    assert result.data["error"] == "INVALID_ARGUMENTS"
+
+
+@pytest.mark.parametrize(("question", "expected"), [
+    ("ถ้ามีค่าใช้จ่ายไม่คาดคิด30%ของรายได้", {"percent_of_monthly_income": 30.0}),
+    ("What if I get a 10,000 THB repair bill?", {"amount_thb": 10000.0}),
+    ("ถ้าต้องซ่อมรถ 10,000 บาท จะเป็นยังไง", {"amount_thb": 10000.0}),
+    ("emergency medical expense of 4500", {"amount_thb": 4500.0}),
+])
+def test_offline_agent_routes_unexpected_expenses(context, question, expected):
+    reply = DeterministicAgent().reply(context, question)
+    assert reply.trace[0].name == "simulate_unexpected_expense"
+    assert expected.items() <= reply.trace[0].arguments.items()
+    assert "Hypothetical scenario" in reply.text
+    assert unverified_numbers(reply.text, question, reply.trace) == []
+
+
+def test_offline_agent_uses_the_previous_question_for_a_follow_up(context):
+    agent = DeterministicAgent()
+    history = [("user", "ถ้ามีค่าใช้จ่ายไม่คาดคิด"), ("assistant", "How large is it?")]
+    reply = agent.reply(context, "30% ของรายได้ต่อเดือน", history)
+    assert reply.trace[0].name == "simulate_unexpected_expense"
+    assert reply.trace[0].arguments["percent_of_monthly_income"] == 30.0
+    # Without that history the same message is not understood.
+    assert agent.reply(context, "30% ต่อเดือน").trace == ()
+
+
+def test_llm_agent_sends_recent_history_and_asks_for_thai(context):
+    llm = ScriptedLLM(say("ได้ครับ"))
+    history = [("user", f"old {i}") for i in range(10)] + [("assistant", "ก่อนหน้า")]
+    LLMAgent(llm).reply(context, "30% ของรายได้ต่อเดือน", history)
+    messages = llm.seen[0][0]
+    assert "Reply in Thai" in messages[0].content
+    assert [m.role for m in messages[1:]] == ["user"] * 5 + ["assistant", "user"]
+    assert messages[-2].content == "ก่อนหน้า" and messages[-1].content.startswith("30%")
+
+
+def test_english_question_does_not_force_thai(context):
+    llm = ScriptedLLM(say("Sure."))
+    LLMAgent(llm).reply(context, "hello")
+    assert "Reply in Thai" not in llm.seen[0][0][0].content
+
+
+def test_figures_from_earlier_turns_count_as_known(context):
+    llm = ScriptedLLM(say("As you said, the repair is 12,345 THB."))
+    reply = LLMAgent(llm).reply(context, "what was it again?",
+                                [("user", "the repair costs 12,345 THB")])
+    assert reply.mode == "llm"

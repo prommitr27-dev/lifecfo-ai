@@ -108,7 +108,8 @@ this month's contribution can never be counted twice.
 
 Implemented: tiers 0 and 1 (`get_financial_profile`, `get_financial_goals`,
 `get_spending_insights`, `get_cash_flow_forecast`, `optimize_financial_plan`,
-`simulate_income_change`). Tiers 2 and 3 arrive with approval and the sandbox
+`simulate_income_change`, `simulate_unexpected_expense`). The chat keeps the
+last six messages as context. Tiers 2 and 3 arrive with approval and the sandbox
 (M3); the remaining tools in the table are planned. Every tool has a Pydantic
 input model, and the registry refuses any call above the agent's tier.
 

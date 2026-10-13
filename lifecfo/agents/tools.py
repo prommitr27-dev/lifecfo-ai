@@ -20,11 +20,17 @@ from datetime import timedelta
 from enum import IntEnum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from lifecfo.cashflow import check_feasibility, forecast_cash_flow, monthly_summary
 from lifecfo.cashflow.forecast import EventKind, build_events
-from lifecfo.domain.models import EnvelopeKind, ExpenseCategory, FinancialState, Frequency
+from lifecfo.domain.models import (
+    EnvelopeKind,
+    Expense,
+    ExpenseCategory,
+    FinancialState,
+    Frequency,
+)
 from lifecfo.domain.money import SATANG_PER_THB
 from lifecfo.llm.base import ToolSpec
 from lifecfo.optimization import Plan, PlanningResult, PlanningStatus, generate_plans
@@ -58,6 +64,22 @@ class IncomeChangeInput(NoInput):
     percent: Annotated[float, Field(ge=-100, le=100, description=(
         "Change in every income source, in percent. Negative for a cut, e.g. -20."))]
     horizon_months: Annotated[int, Field(ge=1, le=24)] = 12
+
+
+class UnexpectedExpenseInput(NoInput):
+    amount_thb: Annotated[float | None, Field(gt=0, le=100_000_000, description=(
+        "Size of the one-off expense in THB. Give this or percent_of_monthly_income."))] = None
+    percent_of_monthly_income: Annotated[float | None, Field(gt=0, le=1000, description=(
+        "Size of the expense as a percentage of monthly income, e.g. 30."))] = None
+    days_from_now: Annotated[int, Field(ge=0, le=365, description=(
+        "When the expense must be paid, in days from the profile date."))] = 0
+    horizon_months: Annotated[int, Field(ge=1, le=24)] = 12
+
+    @model_validator(mode="after")
+    def _one_size(self):
+        if (self.amount_thb is None) == (self.percent_of_monthly_income is None):
+            raise ValueError("give exactly one of amount_thb or percent_of_monthly_income")
+        return self
 
 
 @dataclass(frozen=True)
@@ -337,6 +359,40 @@ def _income_change(context: AgentContext, args: IncomeChangeInput) -> dict[str, 
     }
 
 
+def _unexpected_expense(context: AgentContext, args: UnexpectedExpenseInput) -> dict[str, Any]:
+    state = context.state
+    if args.amount_thb is not None:
+        amount = round(args.amount_thb * SATANG_PER_THB)
+    else:
+        amount = round(_monthly(state.incomes) * args.percent_of_monthly_income / 100)
+    if amount <= 0:
+        return {"error": "NO_INCOME", "detail": "No monthly income to take a percentage of."}
+    due = state.as_of + timedelta(days=args.days_from_now)
+    shock = Expense(
+        id="hypothetical-expense", name="Unexpected expense",
+        category=ExpenseCategory.ESSENTIAL, amount=amount,
+        frequency=Frequency.ONE_TIME, on_date=due,
+    )
+    changed = state.model_copy(update={"expenses": (*state.expenses, shock)})
+    emergency = next((e for e in state.envelopes if e.kind is EnvelopeKind.EMERGENCY), None)
+    fund = emergency.balance if emergency else 0
+    return {
+        "hypothetical": True,
+        "note": "Simulated on a copy. The stored financial state was not changed.",
+        "expense_amount": baht(amount),
+        "expense_due_on": due.isoformat(),
+        "emergency_fund_now": baht(fund),
+        "expense_not_covered_by_emergency_fund": baht(max(0, amount - fund)),
+        "current_plan": _feasibility_data(changed, 92),
+        "replanning_without_touching_savings": _planning_data(changed, args.horizon_months),
+        "limitation": (
+            "Replanning here pays the expense from income and unallocated cash only. Using "
+            "the emergency fund is a recovery decision that needs the user's approval and "
+            "is not simulated yet."
+        ),
+    }
+
+
 def default_registry() -> ToolRegistry:
     registry = ToolRegistry()
     for tool in (
@@ -359,6 +415,11 @@ def default_registry() -> ToolRegistry:
              "Hypothetical: what happens to the current plan and to replanning if income "
              "changes by a percentage. Never changes stored data.", IncomeChangeInput,
              _income_change),
+        Tool("simulate_unexpected_expense", Tier.COMPUTE,
+             "Hypothetical: what happens to the current plan and to replanning if a one-off "
+             "unexpected expense (repair, medical bill) must be paid. Size is an amount in "
+             "THB or a percentage of monthly income. Never changes stored data.",
+             UnexpectedExpenseInput, _unexpected_expense),
     ):
         registry.register(tool)
     return registry

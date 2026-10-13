@@ -115,6 +115,27 @@ def income_change(data: dict[str, Any]) -> str:
     )
 
 
+def unexpected_expense(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return "I could not size that expense because no monthly income is recorded."
+    uncovered = data["expense_not_covered_by_emergency_fund"]
+    fund_line = (
+        f"Your emergency fund holds {thb(data['emergency_fund_now'])}, which would cover it "
+        "in full if you chose to use it."
+        if uncovered == 0 else
+        f"Your emergency fund holds {thb(data['emergency_fund_now'])}, so "
+        f"{thb(uncovered)} of the expense is not covered by it."
+    )
+    return (
+        f"Hypothetical scenario (nothing was saved): an unexpected expense of "
+        f"{thb(data['expense_amount'])} due on {data['expense_due_on']}.\n\n{fund_line}\n\n"
+        f"**Effect on the current plan**\n{forecast(data['current_plan'])}\n\n"
+        f"**Replanning without touching savings**\n"
+        f"{plans(data['replanning_without_touching_savings'])}\n\n"
+        f"Note: {data['limitation']}"
+    )
+
+
 def insights(data: dict[str, Any]) -> str:
     bills = "\n".join(
         f"- {b['date']}: {b['name']}, {thb(b['amount'])}" for b in data["upcoming_bills"]
@@ -137,6 +158,7 @@ RENDERERS = {
     "get_cash_flow_forecast": forecast,
     "optimize_financial_plan": plans,
     "simulate_income_change": income_change,
+    "simulate_unexpected_expense": unexpected_expense,
     "get_spending_insights": insights,
 }
 
@@ -147,7 +169,8 @@ HELP = (
     "- **Bills and spending**: \"What bills are coming up?\"\n"
     "- **Cash flow**: \"Can I afford my current plan?\"\n"
     "- **Plans**: \"Compare the three plans\"\n"
-    "- **What-if**: \"What if my income drops 20%?\""
+    "- **What-if**: \"What if my income drops 20%?\" or \"What if I get a 10,000 THB "
+    "repair bill?\""
 )
 
 CANNOT_EXECUTE = (

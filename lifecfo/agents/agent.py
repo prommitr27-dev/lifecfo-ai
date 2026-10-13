@@ -7,6 +7,7 @@ be verified against tool results, the offline agent answers instead.
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +52,16 @@ _DOWN = ("drop", "cut", "lose", "loss", "reduc", "fall", "decreas", "less", "ล
 _UP = ("rise", "raise", "increas", "more", "grow", "เพิ่ม", "ขึ้น")
 _ACT = ("approve", "execute", "transfer", "send money", "pay now", "move money",
         "อนุมัติ", "โอน", "ดำเนินการ")
+_EXPENSE = ("unexpected", "emergency", "repair", "medical", "hospital", "accident",
+            "ไม่คาดคิด", "ฉุกเฉิน", "ซ่อม", "ค่ารักษา", "อุบัติเหตุ")
+_MONEY = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:thb|baht|บาท|฿)")
+_BARE_AMOUNT = re.compile(r"(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d{3,})(?![\d%])")
+_THAI = re.compile(r"[฀-๿]")
+MAX_HISTORY_TURNS = 6
+MAX_HISTORY_CHARS = 1200
+
+History = Sequence[tuple[str, str]]  # (role, text) pairs, oldest first; role is user/assistant
+
 _INTENTS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("cash", "forecast", "afford", "feasib", "shortfall", "enough", "เงินสด", "พอ"),
      "get_cash_flow_forecast"),
@@ -78,6 +89,14 @@ class DeterministicAgent:
     def route(self, text: str) -> tuple[str, dict[str, Any]] | None:
         lowered = text.lower()
         percent = _PERCENT.search(lowered)
+        if _has(lowered, _EXPENSE) and not (_has(lowered, _DOWN) or _has(lowered, _UP)):
+            money = _MONEY.search(lowered) or _BARE_AMOUNT.search(lowered)
+            if percent:
+                return "simulate_unexpected_expense", {
+                    "percent_of_monthly_income": float(percent.group(1))}
+            if money:
+                return "simulate_unexpected_expense", {
+                    "amount_thb": float(money.group(1).replace(",", ""))}
         if percent and _has(lowered, _INCOME) and (_has(lowered, _DOWN) or _has(lowered, _UP)):
             value = min(float(percent.group(1)), 100.0)
             signed = -value if _has(lowered, _DOWN) else value
@@ -87,11 +106,23 @@ class DeterministicAgent:
                 return tool, {}
         return None
 
-    def reply(self, context: AgentContext, text: str, notice: str | None = None) -> AgentReply:
+    def reply(
+        self,
+        context: AgentContext,
+        text: str,
+        history: History = (),
+        notice: str | None = None,
+    ) -> AgentReply:
         text = text[:MAX_USER_CHARS]
         if _has(text.lower(), _ACT):
             return AgentReply(explain.CANNOT_EXECUTE, "offline", notice=notice)
         routed = self.route(text)
+        if routed is None:
+            # A short follow-up ("30% of my income") only makes sense with the question
+            # before it, so try again with the previous user message in front.
+            previous = next((t for role, t in reversed(history) if role == "user"), None)
+            if previous:
+                routed = self.route(f"{previous[:MAX_USER_CHARS]} {text}")
         if routed is None:
             return AgentReply(explain.HELP, "offline", notice=notice)
         name, arguments = routed
@@ -146,15 +177,24 @@ class LLMAgent:
         self.max_tier = max_tier
         self.offline = DeterministicAgent(self.registry, max_tier)
 
-    def _fallback(self, context: AgentContext, text: str, reason: str) -> AgentReply:
+    def _fallback(
+        self, context: AgentContext, text: str, history: History, reason: str
+    ) -> AgentReply:
         return self.offline.reply(
-            context, text, notice=f"Answered in offline mode because {reason}."
+            context, text, history, notice=f"Answered in offline mode because {reason}."
         )
 
-    def reply(self, context: AgentContext, text: str) -> AgentReply:
+    def reply(self, context: AgentContext, text: str, history: History = ()) -> AgentReply:
         text = text[:MAX_USER_CHARS]
-        messages = [ChatMessage(role="system", content=SYSTEM_PROMPT),
+        recent = [(role, body[:MAX_HISTORY_CHARS]) for role, body in history
+                  if role in ("user", "assistant")][-MAX_HISTORY_TURNS:]
+        system = SYSTEM_PROMPT
+        if _THAI.search(text):
+            system += "\nThe user's message is in Thai. Reply in Thai."
+        messages = [ChatMessage(role="system", content=system),
+                    *(ChatMessage(role=role, content=body) for role, body in recent),
                     ChatMessage(role="user", content=text)]
+        said = " ".join(body for _, body in recent) + " " + text
         tools = self.registry.specs(self.max_tier)
         trace: list[ToolResult] = []
 
@@ -162,15 +202,16 @@ class LLMAgent:
             try:
                 response = self.client.complete(messages, tools)
             except LLMError as error:
-                return self._fallback(context, text, error.user_message)
+                return self._fallback(context, text, history, error.user_message)
 
             if not response.tool_calls:
                 answer = (response.content or "").strip()
                 if not answer:
-                    return self._fallback(context, text, "the AI model returned an empty answer")
-                if unverified_numbers(answer, text, tuple(trace)):
+                    return self._fallback(context, text, history,
+                                          "the AI model returned an empty answer")
+                if unverified_numbers(answer, said, tuple(trace)):
                     return self._fallback(
-                        context, text,
+                        context, text, history,
                         "the AI model stated figures that did not match the calculated results",
                     )
                 return AgentReply(answer, "llm", self.client.provider, self.client.model,
@@ -184,7 +225,8 @@ class LLMAgent:
                 messages.append(ChatMessage(role="tool", tool_call_id=call.id,
                                             content=json.dumps(result.data)))
 
-        return self._fallback(context, text, "the AI model did not finish within the step limit")
+        return self._fallback(context, text, history,
+                              "the AI model did not finish within the step limit")
 
 
 def build_agent(
