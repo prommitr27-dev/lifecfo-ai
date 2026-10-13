@@ -27,7 +27,7 @@ that are not implemented yet; see the roadmap for the current state.
                 |                 +------------v-------------+
                 |                 | lifecfo/agents/          |
                 |                 | Agent + tool registry    |
-                |                 | (MockAgent | ClaudeAgent)|
+                |                 | (MockAgent | LLMAgent)   |
                 |                 +------------+-------------+
                 |                              | registered tools only
 +---------------v------------------------------v---------------+
@@ -125,7 +125,7 @@ many periods, which constraint binds). The LLM only words them.
 4. Simulations run on snapshots; hypothetical shocks are never persisted as real events.
 5. No bank credentials, no real transactions, no borrowing. Everything is a sandbox ledger.
 6. User-entered text reaches the LLM as data, with length limits. Tool permissions do not depend on what the LLM decides.
-7. Data is sent to an external LLM only when the user enables it; the default is mock mode with synthetic data.
+7. By default nothing leaves the machine: mock mode uses no model and local mode runs the model on the user's own computer. A hosted endpoint is used only if the user configures one, and only with synthetic data.
 8. Secrets live in `.env`, which is git-ignored. Only `.env.example` is committed.
 9. Missing or uncertain data yields a `MISSING_DATA` result listing what is absent; values are never guessed.
 
@@ -149,5 +149,5 @@ many periods, which constraint binds). The LLM only words them.
 | Optimization | `scipy.optimize.linprog` (HiGHS) | Small LP, solved in milliseconds, reproducible |
 | Core types | Pydantic v2, integer satang | Tool schemas for free; no float drift |
 | Storage | SQLite via `sqlite3` behind repositories | No extra dependency; can move to another database later |
-| Agent | LLM with tool calling behind an `LLMClient` interface, plus a deterministic `MockAgent` | Tests and the demo run without an API key |
+| Agent | Deterministic `MockAgent` by default; optional free local model through Ollama, or any OpenAI-compatible endpoint, behind one `LLMClient` interface | The project has no budget for paid APIs; tests and the demo run with no key and no network |
 | Tooling | uv, ruff, pytest, GitHub Actions | One command to install, lint, and test |
