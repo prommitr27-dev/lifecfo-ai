@@ -1,0 +1,18 @@
+# Rewards rules. Drafted by Member 1; reviewed by Members 2 and 3.
+# XP values come from the project brief and are configurable design
+# assumptions, not proven behavioural values. Not read by any code until M6.
+
+xp:
+  FINANCIAL_REVIEW_COMPLETED: 10
+  WEEKLY_PLANNING_MISSION_COMPLETED: 20
+  GOAL_MILESTONE_REACHED: 50
+  RECOVERY_MISSION_COMPLETED: 75
+
+goal_milestones_percent: [25, 50, 75, 100]
+
+streak:
+  week_starts_on: monday
+  # A protected day keeps the count frozen: it neither increases nor resets.
+  protected_days_increment_count: false
+  grace_days_per_week: null   # to be decided in M6
+  protection_max_days: null   # to be decided in M6

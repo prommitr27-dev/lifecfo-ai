@@ -1,0 +1,15 @@
+# Thresholds for ShockProof risk indicators.
+# Owner: Member 3 (Risk and Evaluation).
+# Values are intentionally unset: they will be defined and justified in
+# docs/SHOCKPROOF_DESIGN.md during M4. Not read by any code yet.
+
+days_until_shortfall:
+  high_risk_below: null
+  medium_risk_below: null
+
+emergency_reserve_months_of_essentials:
+  adequate_at_or_above: null
+  low_below: null
+
+essential_bill_coverage_ratio:
+  at_risk_below: null

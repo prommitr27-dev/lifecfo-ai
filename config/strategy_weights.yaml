@@ -1,0 +1,19 @@
+# Objective weights for the three planning strategies.
+# Owner: Member 2 (Financial Modeling).
+# DRAFT design assumptions, not calibrated values. Not read by any code until M2.
+# Higher weight means the optimizer tries harder to avoid a shortfall in that area.
+
+safety_first:
+  reserve_shortfall: 10
+  goal_shortfall: 1
+  flexible_cut: 1
+
+balanced:
+  reserve_shortfall: 4
+  goal_shortfall: 4
+  flexible_cut: 2
+
+goal_first:
+  reserve_shortfall: 2
+  goal_shortfall: 10
+  flexible_cut: 1
