@@ -98,6 +98,10 @@ I generated 3 plans over 12 months. Each one passed the deterministic validator 
 - New laptop: completes 2027-07 (Balanced now: 2027-08)
 - Vacation is marked flexible, so a later date may be proposed. Its deadline stays as it is unless you change it.
 
+**If you decline the flexible cut**
+- Vacation: completes 2027-09 (with the cut: 2027-08).
+- If you decline the proposed cut, your flexible budget stays as it is; goal and reserve contributions wait instead. Essentials are never reduced.
+
 These are proposals. Nothing changes until you approve a plan.
 
 ## User: What if my income drops 20%?
@@ -175,6 +179,10 @@ I generated 3 plans over 12 months. Each one passed the deterministic validator 
 - Without its 2027-06-30 deadline, Vacation is projected to complete after the horizon.
 - No change to other goals or the reserve.
 - Vacation is marked flexible, so a later date may be proposed. Its deadline stays as it is unless you change it.
+
+**If you decline the flexible cut**
+- Months below the cash buffer: 3 (with the cut: 2).
+- If you decline the proposed cut, your flexible budget stays as it is; goal and reserve contributions wait instead. Essentials are never reduced.
 
 These are proposals. Nothing changes until you approve a plan.
 
@@ -282,6 +290,11 @@ I generated 3 plans over 12 months. Each one passed the deterministic validator 
 - Without its 2027-06-30 deadline, Vacation is projected to complete 2027-09.
 - No change to other goals or the reserve.
 - Vacation is marked flexible, so a later date may be proposed. Its deadline stays as it is unless you change it.
+
+**If you decline the flexible cut**
+- Vacation: completes 2027-10 (with the cut: 2027-09).
+- Emergency fund target reached 2027-05 (with the cut: 2027-04).
+- If you decline the proposed cut, your flexible budget stays as it is; goal and reserve contributions wait instead. Essentials are never reduced.
 
 These are proposals. Nothing changes until you approve a plan.
 

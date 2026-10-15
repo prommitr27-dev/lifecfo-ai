@@ -257,8 +257,8 @@ def test_at9_flexible_goal_gets_an_option_and_non_flexible_gets_a_risk(demo_stat
     safety = next(p for p in data["plans"] if p["strategy"] == "Safety First")
     vacation = next(g for g in safety["goals"] if g["name"] == "Vacation")
     assert vacation["flexible"] and "FLEXIBLE_GOAL_DELAY" in vacation["shortfall_kinds"]
-    assert data["alternatives"][0]["goal"] == "Vacation"
-    assert data["alternatives"][0]["requires_approval"] is True
+    later = [a for a in data["alternatives"] if a["kind"] == "LATER_DATE_FOR_FLEXIBLE_GOAL"]
+    assert later[0]["goal"] == "Vacation" and later[0]["requires_approval"] is True
 
     strict = demo_state.model_copy(update={"goals": tuple(
         g.model_copy(update={"flexible": False}) for g in demo_state.goals)})
@@ -266,7 +266,8 @@ def test_at9_flexible_goal_gets_an_option_and_non_flexible_gets_a_risk(demo_stat
     safety = next(p for p in data["plans"] if p["strategy"] == "Safety First")
     vacation = next(g for g in safety["goals"] if g["name"] == "Vacation")
     assert "DEADLINE_RISK" in vacation["shortfall_kinds"]
-    assert data["alternatives"] == []
+    assert [a for a in data["alternatives"]
+            if a["kind"] == "LATER_DATE_FOR_FLEXIBLE_GOAL"] == []
 
 
 def test_at9_targets_and_deadlines_are_never_changed(demo_state):

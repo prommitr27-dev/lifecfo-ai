@@ -189,6 +189,12 @@ def plans(data: dict[str, Any]) -> str:
     if data["tradeoffs"]:
         text += "\n\n**Trade-offs**\n" + "\n".join(f"- {fact}" for fact in data["tradeoffs"])
     for option in data.get("alternatives", []):
+        if option.get("kind") == "KEEP_FLEXIBLE_BUDGET":
+            text += ("\n\n**If you decline the flexible cut**\n"
+                     + ("\n".join(f"- {e}" for e in option["effects"]) + "\n"
+                        if option["possible"] else "")
+                     + f"- {option['note']}")
+            continue
         text += (
             f"\n\n**Option to consider: a later date for {option['goal']}** "
             f"(needs your approval)\n- Without its {option['current_deadline']} deadline, "

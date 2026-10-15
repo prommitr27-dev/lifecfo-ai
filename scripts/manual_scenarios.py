@@ -188,7 +188,7 @@ def scenario_8(state):
         ("Deadline unchanged", all(g["deadline"] == "2026-12-31" for g in laptop)),
         ("Laptop is not flexible, so the risk is DEADLINE_RISK and no later date is offered",
          all("DEADLINE_RISK" in g["shortfall_kinds"] for g in laptop)
-         and all(a["goal"] != "New laptop" for a in data["alternatives"])),
+         and all(a.get("goal") != "New laptop" for a in data["alternatives"])),
     ]
     return section(8, "Near-term goal (laptop due in two months)",
                    ["Baseline profile with the laptop deadline moved to 2026-12-31"],

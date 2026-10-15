@@ -129,8 +129,9 @@ class Debt(Frozen):
     # The contract's method, when the user knows it. Without it, interest is estimated.
     interest_method: InterestMethod | None = None
     extra_payment_allowed: bool = True
-    # Fee charged on an early (extra) repayment, as a fraction of the amount repaid.
-    prepayment_fee_rate: Annotated[float, Field(ge=0, le=1)] | None = None
+    # The contract may charge a fee for early (extra) repayment. Economics decision 4:
+    # the MVP does not calculate such fees; it discloses that estimates exclude them.
+    prepayment_fee_possible: bool = False
 
 
 class Goal(Frozen):

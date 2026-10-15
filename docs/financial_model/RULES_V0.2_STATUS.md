@@ -81,25 +81,16 @@ labelled projections; contributions and the remaining amount are reported.
 | One-off income changed incorrectly in a shock | Fixed: income shocks apply to recurring income only (AT13) |
 | Month-end sweeps and monthly lump-sum essentials | Kept as documented modelling assumptions |
 
-## 4. Decisions that need economics input
+## 4. Economics decisions (answered 15 October 2026)
 
-1. **Buffer versus flexible spending.** When accessible cash is below the
-   buffer, plans may propose flexible cuts (within the permitted range) to
-   restore it, because the buffer is weighted far above lifestyle spending.
-   Should restoring the buffer be allowed to propose flexible cuts, or should
-   it only hold back goal contributions?
-2. **Order of residual uses.** Extra debt repayment currently ranks below
-   the reserve and goal schedules, and surplus is shared by the draft
-   `surplus_*` weights. Is that the intended order under D6.2?
-3. **Unknown-rate debts.** For cash planning the minimum payment is assumed
-   to continue for the whole horizon, and extra repayment is capped at the
-   unpaid principal. Is that acceptable?
-4. **Prepayment fee.** It is charged on top of the extra amount. Some
-   contracts deduct it instead. Which should be the default?
-5. **Avalanche with unknown rates.** Debts with an unknown rate are ranked
-   last. Confirm.
-6. **Reserve withdrawal timing.** In the expense scenario the withdrawal is
-   modelled on the profile date, before the expense. Confirm, or specify.
+| # | Decision | Implementation | Test |
+|---|---|---|---|
+| 1 | Plans may propose flexible cuts to restore the buffer, within the user's range and subject to approval; if declined, keep the budget and hold back contributions instead | Unchanged optimizer behaviour; every plan with a cut now comes with a "keep your flexible budget" option showing its effect on goals, the reserve, and buffer months | `test_decision_1_*` |
+| 2 | Order: essentials and debt minimums; buffer and reserve requirements; scheduled goal allocations; extra debt repayment from genuine residual funds | Extra repayment's surplus weight is capped below every goal that still needs money, so it only starts once goals are funded. The buffer is enforced first; the reserve follows each strategy's reserve schedule (read as its "reserve requirement"), and surplus beyond the schedules is shared by the `surplus_*` weights | `test_decision_2_*` |
+| 3 | Unknown rate: minimum continues for the whole horizon, extra capped at unpaid principal, limitation disclosed, never 0% | Already in place | `test_decision_3_*` |
+| 4 | No prepayment fee calculation in the MVP; disclose that estimates exclude it | `Debt.prepayment_fee_possible` replaces the fee rate; no fee is computed and the comparison says estimates exclude it | `test_decision_4_*` |
+| 5 | Unknown-rate debts last in Avalanche, explained as a rule for incomplete information; recalculate when the rate is supplied | Ranking unchanged; the comparison now explains why, and the order changes as soon as a rate is given | `test_decision_5_*` |
+| 6 | Simulated reserve withdrawal on the profile date, before the expense; kept separate from real transactions | Already in place; simulations never write, real withdrawals are a separate user action | `test_decision_6_*` |
 
 ## 5. Not implemented yet
 

@@ -186,6 +186,12 @@ def optimize_plan(
     order = payoff_order(base)
     debt_room = sum(d.balance for d in base.debts if d.id in order) / SATANG_PER_THB
     use_debt = strategy.surplus_debt > 0 and debt_room > 0
+    # Economics decision 2: extra repayment comes last, after goal allocations. Its
+    # surplus weight is therefore kept below that of every goal still needing money.
+    goal_bonuses = [bonus for envelope, need, _, bonus, _ in targets
+                    if envelope.kind is EnvelopeKind.GOAL and need > 0]
+    debt_bonus = (min(strategy.surplus_debt, 0.5 * min(goal_bonuses)) if goal_bonuses
+                  else strategy.surplus_debt)
 
     # Variable layout.
     index = 0
@@ -288,7 +294,7 @@ def optimize_plan(
     for t, period in enumerate(periods):
         cost[th(t)] = -strategy.flexible_cut_weight * period.cuttable
         if use_debt:
-            cost[z0 + t] = -strategy.surplus_bonus_scale * strategy.surplus_debt * (n_months - t)
+            cost[z0 + t] = -strategy.surplus_bonus_scale * debt_bonus * (n_months - t)
         if buffer is not None:
             cost[b0 + t] = strategy.buffer_weight
 

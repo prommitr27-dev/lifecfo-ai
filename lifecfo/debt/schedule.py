@@ -147,7 +147,7 @@ def _schedule_one(debt: Debt, start: date, end: date,
         balance = max(0, balance - minimum)
         extra = min(extra_on.get(on, 0), balance) if debt.extra_payment_allowed else 0
         balance -= extra
-        fee = round(extra * (debt.prepayment_fee_rate or 0))
+        fee = 0  # prepayment fees are not calculated in the MVP (economics decision 4)
         if minimum or extra or interest:
             periods.append(DebtPeriod(
                 on=on, opening=opening, interest=interest, minimum_paid=minimum,
@@ -178,6 +178,8 @@ def payoff_order(state: FinancialState, strategy: DebtStrategy | None = None) ->
     The user's explicit `debt_order` wins. Otherwise Avalanche puts the highest rate
     first (debts with an unknown rate last, since their cost cannot be compared) and
     Snowball puts the smallest balance first. Ties keep the order given by the user.
+    Ranking unknown-rate debts last is a rule for incomplete information (economics
+    decision 5), not a claim that their rate is the lowest.
     """
     eligible = [d for d in state.debts if d.balance > 0 and d.extra_payment_allowed]
     if state.debt_order and strategy is None:
@@ -219,10 +221,8 @@ def allocate_extra(
     """Share extra-repayment cash across debts in payoff order (rules D6).
 
     `cash` lists (payment date, satang available). Each debt gets at most what it owes
-    on that date, in whole baht; a prepayment fee is paid from the same cash. Cash that
-    no debt can take is left unallocated.
+    on that date, in whole baht. Cash that no debt can take is left unallocated.
     """
-    debts = {d.id: d for d in state.debts}
     payments: list[ExtraDebtPayment] = []
     for on, available in cash:
         for debt_id in order:
@@ -230,12 +230,11 @@ def allocate_extra(
                 break
             current = state.model_copy(update={"debt_payments": tuple(payments)})
             owed = balance_after(current, debt_id, on - timedelta(days=1))
-            fee_rate = debts[debt_id].prepayment_fee_rate or 0
-            affordable = math.floor(available / (1 + fee_rate) / SATANG_PER_THB)
+            affordable = math.floor(available / SATANG_PER_THB)
             applied = min(owed // SATANG_PER_THB, affordable) * SATANG_PER_THB
             if applied <= 0:
                 continue
-            available -= applied + round(applied * fee_rate)
+            available -= applied
             payments.append(ExtraDebtPayment(
                 id=f"extra:{debt_id}:{on.isoformat()}", debt_id=debt_id, amount=applied,
                 frequency=Frequency.ONE_TIME, on_date=on))

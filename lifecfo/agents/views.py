@@ -271,6 +271,7 @@ def flexible_goal_alternatives(state: FinancialState, result: PlanningResult,
                            f"{plan.reserve.reached_month or 'not within the horizon'} "
                            f"(Balanced now: {baseline.reserve.reached_month or 'not within'}).")
         options.append({
+            "kind": "LATER_DATE_FOR_FLEXIBLE_GOAL",
             "goal": goal.name,
             "current_deadline": _iso(goal.deadline),
             "projected_completion_without_the_deadline": projected.completion_month,
@@ -280,6 +281,45 @@ def flexible_goal_alternatives(state: FinancialState, result: PlanningResult,
                     "deadline stays as it is unless you change it.",
         })
     return options
+
+
+def keep_flexible_budget_alternative(state: FinancialState, result: PlanningResult,
+                                     horizon_months: int) -> dict[str, Any] | None:
+    """Economics decision 1: if the user declines a proposed flexible cut, show what
+    keeping the original budget means instead (contributions wait, not essentials)."""
+    if result.status is not PlanningStatus.OK or not any(
+            m.flexible_total < m.flexible_max for p in result.plans for m in p.months):
+        return None
+    fixed = state.model_copy(update={"expenses": tuple(
+        e.model_copy(update={"reduction_allowed": False}) for e in state.expenses)})
+    config = {"BALANCED": load_strategies()["BALANCED"]}
+    alt = generate_plans(fixed, config, horizon_months)
+    baseline = next((p for p in result.plans if p.strategy == "BALANCED"), result.plans[0])
+    if alt.status is not PlanningStatus.OK:
+        return {"kind": "KEEP_FLEXIBLE_BUDGET", "possible": False,
+                "note": "Keeping the full flexible budget leaves no feasible plan "
+                        f"({alt.status.value}); a reduction or another change is needed."}
+    plan = alt.plans[0]
+    effects = []
+    for before, after in zip(baseline.goals, plan.goals, strict=True):
+        if before.completion_month != after.completion_month:
+            effects.append(f"{after.name}: completes "
+                           f"{after.completion_month or 'not within the horizon'} "
+                           f"(with the cut: {before.completion_month or 'not within'}).")
+    if baseline.reserve and plan.reserve and (
+            baseline.reserve.reached_month != plan.reserve.reached_month):
+        effects.append(f"Emergency fund target reached "
+                       f"{plan.reserve.reached_month or 'not within the horizon'} "
+                       f"(with the cut: {baseline.reserve.reached_month or 'not within'}).")
+    if len(plan.months_below_buffer) != len(baseline.months_below_buffer):
+        effects.append(f"Months below the cash buffer: {len(plan.months_below_buffer)} "
+                       f"(with the cut: {len(baseline.months_below_buffer)}).")
+    return {
+        "kind": "KEEP_FLEXIBLE_BUDGET", "possible": True,
+        "effects": effects or ["No change to goals, the reserve, or the buffer."],
+        "note": "If you decline the proposed cut, your flexible budget stays as it is; goal "
+                "and reserve contributions wait instead. Essentials are never reduced.",
+    }
 
 
 def planning_data(state: FinancialState, horizon_months: int) -> dict[str, Any]:
@@ -293,6 +333,9 @@ def planning_data(state: FinancialState, horizon_months: int) -> dict[str, Any]:
         data["plans"] = [plan_data(plan, state) for plan in result.plans]
         data["tradeoffs"] = tradeoff_facts(result)
         data["alternatives"] = flexible_goal_alternatives(state, result, horizon_months)
+        keep = keep_flexible_budget_alternative(state, result, horizon_months)
+        if keep:
+            data["alternatives"].append(keep)
     else:
         data["plans"] = []
         data["essential_shortfall"] = baht(result.feasibility.essential_shortfall)
@@ -398,9 +441,14 @@ def debt_comparison(state: FinancialState, months: int,
         if not debt.extra_payment_allowed:
             notes.append(f"{debt.name}: extra repayment is not permitted, so it only gets "
                          "its minimum.")
-        if debt.prepayment_fee_rate:
-            notes.append(f"{debt.name}: a prepayment fee of {debt.prepayment_fee_rate:.2%} "
-                         "applies to extra repayments and is paid from the same cash.")
+        if debt.prepayment_fee_possible:
+            notes.append(f"{debt.name}: the contract may charge a fee for early repayment. "
+                         "This estimate excludes any such fee, so the actual cost and payoff "
+                         "timing may differ.")
+        if debt.apr is None:
+            notes.append(f"{debt.name}: ranked last in Avalanche only because its rate is "
+                         "unknown and cannot be compared, not because it is the lowest. "
+                         "Provide the rate and the order is recalculated.")
     if any(c["interest_incomplete"] for c in comparisons):
         notes.append("At least one rate is unknown, so total interest leaves that debt out "
                      "and the strategies cannot be fully compared on cost.")
