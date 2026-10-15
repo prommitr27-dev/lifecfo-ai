@@ -77,6 +77,9 @@ MAX_HISTORY_CHARS = 1200
 History = Sequence[tuple[str, str]]  # (role, text) pairs, oldest first; role is user/assistant
 
 _INTENTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("on time", "reach my", "reachable", "achievable", "realistic", "ทันไหม", "ทันมั้ย",
+      "เป็นไปได้"), "calculate_goal_feasibility"),
+    (("risk", "how safe", "risky", "ความเสี่ยง", "เสี่ยง"), "assess_financial_risk"),
     (("streak", "xp", "reward", "badge", "mission", "level", "สตรีค", "รางวัล", "ภารกิจ"),
      "get_reward_status"),
     (("debt", "avalanche", "snowball", "loan", "interest", "หนี้", "ดอกเบี้ย"),

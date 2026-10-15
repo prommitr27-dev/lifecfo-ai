@@ -30,7 +30,7 @@ created with a maximum tier and the registry refuses anything above it.
 | Tier | Tools | Can change stored state |
 |---|---|---|
 | 0 READ | `get_financial_profile`, `get_financial_goals`, `get_spending_insights`, `get_audit_history`, `get_reward_status` | No |
-| 1 COMPUTE | `get_cash_flow_forecast`, `get_financial_position`, `optimize_financial_plan`, `compare_debt_strategies`, `simulate_income_change`, `simulate_unexpected_expense` | No. Runs on copies |
+| 1 COMPUTE | `get_cash_flow_forecast`, `get_financial_position`, `calculate_goal_feasibility`, `assess_financial_risk`, `optimize_financial_plan`, `compare_debt_strategies`, `simulate_income_change`, `simulate_unexpected_expense` | No. Runs on copies |
 | 2 PROPOSE | `request_plan_approval` | Stores a proposal only. Money and plan are untouched |
 | 3 EXECUTE | `execute_approved_sandbox_plan` | Yes, but only with a valid, unused approval from the user |
 

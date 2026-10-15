@@ -1,7 +1,8 @@
 # Thresholds for ShockProof risk indicators.
 # Owner: Member 3 (Risk and Evaluation).
-# Values are intentionally unset: they will be defined and justified in
-# docs/SHOCKPROOF_DESIGN.md during M4. Not read by any code yet.
+# Read by the assess_financial_risk tool (lifecfo/agents/indicators.py). While a
+# value is null the indicator is shown without a rating; nothing is invented.
+# Define and justify the values in docs/SHOCKPROOF_DESIGN.md.
 
 days_until_shortfall:
   high_risk_below: null

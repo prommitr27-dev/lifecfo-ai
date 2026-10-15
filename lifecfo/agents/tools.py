@@ -29,6 +29,7 @@ from pydantic import (
     model_validator,
 )
 
+from lifecfo.agents.indicators import goal_feasibility_data, risk_data
 from lifecfo.agents.views import (
     baht,
     debt_comparison,
@@ -406,6 +407,14 @@ def _position(context: AgentContext, args: PositionInput) -> dict[str, Any]:
                                                              args.horizon_months)))
 
 
+def _goal_feasibility(context: AgentContext, _: NoInput) -> dict[str, Any]:
+    return goal_feasibility_data(context.state)
+
+
+def _risk(context: AgentContext, args: PositionInput) -> dict[str, Any]:
+    return risk_data(context.state, args.horizon_months)
+
+
 def _debts(context: AgentContext, args: DebtCompareInput) -> dict[str, Any]:
     extra = (None if args.extra_per_month_thb is None
              else round(args.extra_per_month_thb * SATANG_PER_THB))
@@ -499,6 +508,15 @@ def default_registry() -> ToolRegistry:
              "The user's own position before any plan: monthly budget, original deficit, "
              "current cash pools, uncommitted funds, emergency reserve target and gap, cash "
              "buffer, and every shortfall by kind.", PositionInput, _position),
+        Tool("calculate_goal_feasibility", Tier.COMPUTE,
+             "Each goal on its own: what is still needed, the amount needed per month to "
+             "meet its deadline, the most that could be saved by then, and whether it is "
+             "reachable on time.", NoInput, _goal_feasibility),
+        Tool("assess_financial_risk", Tier.COMPUTE,
+             "Risk indicators for the current plan: days until a cash shortfall, lowest "
+             "projected cash, essential bill coverage, reserve months, income volatility, "
+             "and goals at risk, rated only by thresholds the risk lead has set.",
+             PositionInput, _risk),
         Tool("compare_debt_strategies", Tier.COMPUTE,
              "Debt interest and payoff under Avalanche, Snowball, and the user's own order "
              "over the same period, with how each interest figure was obtained and its "

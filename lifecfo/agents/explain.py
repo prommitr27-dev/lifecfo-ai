@@ -368,6 +368,54 @@ def rewards(data: dict[str, Any]) -> str:
     return text + f"\n\n**Goal progress**\n{progress or '- no goals'}\n\n{data['note']}"
 
 
+def goal_feasibility(data: dict[str, Any]) -> str:
+    lines = [f"Free cash under your original budget: "
+             f"{thb(data['free_cash_per_month_under_original_budget'])} a month. Your goals "
+             f"with deadlines need {thb(data['required_per_month_by_all_deadline_goals'])} a "
+             f"month together, and the emergency reserve gap is {thb(data['reserve_gap'])}.", ""]
+    labels = {"ALREADY_FUNDED": "already funded", "NO_DEADLINE": "no deadline",
+              "NOT_REACHABLE_ON_TIME": "not reachable on time",
+              "REACHABLE_ON_ITS_OWN": "reachable on its own",
+              "REACHABLE_ONLY_WITH_CUTS": "reachable only with cuts or other goals waiting"}
+    for g in data["goals"]:
+        line = (f"- **{g['goal']}** (priority {g['priority']}): "
+                f"{labels[g['status']]}; {thb(g['remaining'])} still needed")
+        if "required_per_month" in g:
+            line += (f", {thb(g['required_per_month'])} a month over "
+                     f"{g['month_end_sweeps_before_deadline']} month(s) to {g['deadline']}; "
+                     f"if it took every spare baht, at most "
+                     f"{thb(g['most_possible_by_deadline'])} could be saved by then")
+        if g.get("months_if_all_free_cash_went_to_it"):
+            line += (f"; about {g['months_if_all_free_cash_went_to_it']} month(s) if all free "
+                     "cash went to it alone")
+        if g.get("note"):
+            line += f". {g['note']}"
+        lines.append(line)
+    return "\n".join(lines + ["", data["note"]])
+
+
+def risk(data: dict[str, Any]) -> str:
+    labels = {"NO_THRESHOLD_SET": "no threshold set yet", "INFORMATION": "for information",
+              "NO_SHORTFALL_IN_HORIZON": "no shortfall in the horizon",
+              "NOT_MEASURABLE": "not measurable", "NONE": "none", "AT_RISK": "at risk",
+              "NOTHING_DUE": "nothing due", "NO_ESSENTIALS": "no essentials recorded"}
+    lines = [f"**Risk indicators** (as of {data['as_of']}, {data['horizon_days']} days)"]
+    for item in data["indicators"]:
+        if item["value"] is None:
+            value = "n/a"
+        elif item.get("unit") == "THB":
+            value = thb(item["value"])
+        else:
+            value = f"{item['value']:,}"
+        extra = f" on {item['on']}" if item.get("on") else ""
+        goals = f" ({', '.join(item['goals'])})" if item.get("goals") else ""
+        rating = labels.get(item["rating"], item["rating"].lower().replace("_", " "))
+        lines.append(f"- {item['name']}: {value}{extra}{goals} [{rating}]")
+        if item.get("note"):
+            lines.append(f"  - {item['note']}")
+    return "\n".join(lines + ["", data["note"]])
+
+
 RENDERERS = {
     "get_financial_profile": profile,
     "get_financial_goals": goals,
@@ -381,6 +429,8 @@ RENDERERS = {
     "get_financial_position": position,
     "compare_debt_strategies": debts,
     "get_reward_status": rewards,
+    "calculate_goal_feasibility": goal_feasibility,
+    "assess_financial_risk": risk,
     "get_spending_insights": insights,
 }
 
@@ -395,6 +445,8 @@ HELP = (
     "repair bill?\"\n"
     "- **Position**: \"Where do I stand?\" (available cash, deficit, reserve, buffer)\n"
     "- **Debts**: \"Compare Avalanche and Snowball\"\n"
+    "- **Goal check**: \"Can I reach my goals on time?\"\n"
+    "- **Risk**: \"How risky is my plan?\"\n"
     "- **Propose**: \"Propose the Balanced plan\" (you then approve it in the Sandbox view)\n"
     "- **Execute**: \"Execute the approved plan\"\n"
     "- **Rewards**: \"Show my streak and missions\"\n"

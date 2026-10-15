@@ -68,6 +68,7 @@ def test_no_tool_lets_the_agent_approve(sandbox):
         "get_audit_history", "get_cash_flow_forecast", "optimize_financial_plan",
         "simulate_income_change", "simulate_unexpected_expense", "request_plan_approval",
         "get_financial_position", "compare_debt_strategies", "get_reward_status",
+        "calculate_goal_feasibility", "assess_financial_risk",
         "execute_approved_sandbox_plan",
     }  # nothing here records a decision; SandboxService.decide is reachable from the UI only
 

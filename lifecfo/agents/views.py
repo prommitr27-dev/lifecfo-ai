@@ -523,6 +523,6 @@ def expense_scenario(state: FinancialState, amount: int, due: date,
         "recovery_options": planning_data(after, months),
         "limitation": (
             "The withdrawal is modelled as taken on the profile date, before the expense. "
-            "Recording a real expense or withdrawal in the sandbox is not available yet; "
-            "these recovery plans are proposals that need approval."),
+            "To act on it, the user confirms the expense and any withdrawal in the Sandbox "
+            "view; these recovery plans are proposals that need approval."),
     }
