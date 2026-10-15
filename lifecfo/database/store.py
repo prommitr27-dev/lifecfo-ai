@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS transactions (
     kind TEXT NOT NULL, ref TEXT NOT NULL, from_envelope TEXT, to_envelope TEXT,
     amount INTEGER NOT NULL, effective_on TEXT NOT NULL, plan_id TEXT,
     created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS reward_events (
+    event_id TEXT PRIMARY KEY, type TEXT NOT NULL, xp INTEGER NOT NULL,
+    occurred_on TEXT NOT NULL, recorded_at TEXT NOT NULL, payload TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS streaks (kind TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
     action TEXT NOT NULL, payload TEXT NOT NULL, prev_hash TEXT NOT NULL,
@@ -173,6 +177,45 @@ class Store:
             prev_hash = row["hash"]
         return True
 
+    # --- rewards -------------------------------------------------------------------------
+
+    def insert_reward_event(self, row: dict[str, Any]) -> bool:
+        """Record a reward event once. Returns False when the id was already recorded."""
+        try:
+            self.db.execute(
+                "INSERT INTO reward_events (event_id, type, xp, occurred_on, recorded_at, "
+                "payload) VALUES (:event_id, :type, :xp, :occurred_on, :recorded_at, :payload)",
+                {**row, "payload": json.dumps(row.get("payload", {}), sort_keys=True,
+                                              default=str)})
+        except sqlite3.IntegrityError:
+            return False
+        return True
+
+    def list_reward_events(self) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            "SELECT * FROM reward_events ORDER BY recorded_at, rowid").fetchall()
+        return [{**dict(r), "payload": json.loads(r["payload"])} for r in rows]
+
+    def load_streak(self, kind: str) -> dict[str, Any] | None:
+        row = self.db.execute("SELECT data FROM streaks WHERE kind = ?", (kind,)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    def save_streak(self, kind: str, data: dict[str, Any]) -> None:
+        self.db.execute(
+            "INSERT INTO streaks (kind, data) VALUES (?, ?) "
+            "ON CONFLICT(kind) DO UPDATE SET data = excluded.data",
+            (kind, json.dumps(data, sort_keys=True, default=str)))
+
+    def get_meta(self, key: str) -> str | None:
+        row = self.db.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        self.db.execute(
+            "INSERT INTO meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
     def clear(self) -> None:
-        for table in ("transactions", "approvals", "plans", "audit", "meta"):
+        for table in ("transactions", "approvals", "plans", "audit", "meta", "reward_events",
+                      "streaks"):
             self.db.execute(f"DELETE FROM {table}")  # noqa: S608 - fixed table names

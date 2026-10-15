@@ -24,7 +24,6 @@ from enum import StrEnum
 from lifecfo.cashflow.forecast import EventKind, build_events, forecast_cash_flow
 from lifecfo.domain.models import (
     EnvelopeKind,
-    ExpenseCategory,
     FinancialState,
     Frequency,
     Frozen,
@@ -134,15 +133,23 @@ def _month_end(start: date) -> date:
 
 def assess_position(state: FinancialState, horizon_days: int) -> PositionReport:
     """The position under the user's own inputs, before any proposal."""
-    flexible = [e for e in state.expenses
-                if e.category is ExpenseCategory.FLEXIBLE and e.frequency is Frequency.MONTHLY]
+    month_end = _month_end(state.as_of)
+    window = build_events(state, state.as_of, month_end, include_transfers=False)
+    floor_window = build_events(state, state.as_of, month_end, include_transfers=False,
+                                flexible_at_floor=True)
+    flexible_ids = {e.ref_id for e in window if e.kind is EventKind.FLEXIBLE_EXPENSE}
+    # Flexible figures come from the coming month's schedule, so they are right both for
+    # a recurring budget and for the dated amounts of a plan the user approved.
     budget = MonthlyBudget(
         income=sum(i.amount for i in state.incomes if i.frequency is Frequency.MONTHLY),
         essentials=state.monthly_essentials,
         debt_minimums=state.monthly_debt_minimums,
-        flexible_budget=sum(e.amount for e in flexible),
-        flexible_minimum=sum(e.floor for e in flexible),
-        reduction_allowed=any(e.reduction_allowed for e in flexible),
+        flexible_budget=sum(e.amount for e in window
+                            if e.kind is EventKind.FLEXIBLE_EXPENSE),
+        flexible_minimum=sum(e.amount for e in floor_window
+                             if e.kind is EventKind.FLEXIBLE_EXPENSE),
+        reduction_allowed=any(e.reduction_allowed for e in state.expenses
+                              if e.id in flexible_ids),
     )
     reserve_envelope = state.emergency
     cash = CashPools(
@@ -152,8 +159,6 @@ def assess_position(state: FinancialState, horizon_days: int) -> PositionReport:
                                if e.kind is EnvelopeKind.GOAL),
     )
 
-    month_end = _month_end(state.as_of)
-    window = build_events(state, state.as_of, month_end, include_transfers=False)
     income_next = sum(e.amount for e in window if e.kind is EventKind.INCOME)
     obligations_next = sum(e.amount for e in window if e.kind is not EventKind.INCOME)
 

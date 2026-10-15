@@ -9,12 +9,13 @@ in-memory sandbox with a fixed clock, so the output is identical every time.
 
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from lifecfo.agents import AgentContext, DeterministicAgent, Tier
+from lifecfo.cashflow.position import ShortfallKind, assess_position
 from lifecfo.database import Store
-from lifecfo.domain import FixedClock
+from lifecfo.domain import FixedClock, thb
 from lifecfo.domain.loader import load_state
 from lifecfo.services import SandboxService
 
@@ -38,8 +39,21 @@ SCRIPT = [
     ("app", "approve"),
     ("user", "Execute the approved plan"),
     ("user", "Execute the approved plan"),
+    ("app", "checkin"),
+    ("app", "next day"),
+    ("app", "checkin"),
     ("app", "advance 30"),
+    ("app", "checkin"),
     ("user", "Show my financial summary"),
+    ("user", "Show my streak and missions"),
+    ("app", "confirm 10000 2026-12-12"),
+    ("user", "Show my streak and missions"),
+    ("user", "Where do I stand?"),
+    ("app", "withdraw needed"),
+    ("user", "Propose the Safety First plan"),
+    ("app", "approve"),
+    ("user", "Execute the approved plan"),
+    ("user", "Show my streak and missions"),
     ("user", "Show the audit log"),
 ]
 
@@ -56,16 +70,45 @@ def run() -> tuple[str, dict]:
         "identical output. Lines marked **App** are the user pressing a button in the",
         "Sandbox view; the assistant has no tool that can do this.",
     ]
+    clock = sandbox.clock
     for kind, text in SCRIPT:
         if kind == "app":
+            words = text.split()
             if text == "approve":
                 plan_id = sandbox.store.list_plans("PROPOSED")[0]["id"]
                 result = sandbox.decide(plan_id, True)
                 label = f"user presses Approve on `{plan_id}`"
-            else:
-                result = sandbox.advance(int(text.split()[1]))
-                label = f"user posts {text.split()[1]} days of scheduled transactions"
-            parts += ["", f"## App: {label}", "", f"{result.code}: {result.message}"]
+                outcome = f"{result.code}: {result.message}"
+            elif text == "checkin":
+                recorded = sandbox.rewards.record_review()
+                label = "user presses \"I reviewed my bills and plan today\""
+                outcome = "Check-in recorded." if recorded else "Already recorded today."
+            elif text == "next day":
+                clock.advance(days=1)
+                label, outcome = "one day passes", f"Clock: {clock.now().date()}"
+            elif words[0] == "advance":
+                result = sandbox.advance(int(words[1]))
+                clock.advance(days=int(words[1]))
+                label = f"user posts {words[1]} days of scheduled transactions"
+                outcome = f"{result.code}: {result.message}"
+            elif words[0] == "confirm":
+                result = sandbox.confirm_expense("Car repair", thb(int(words[1])),
+                                                 date.fromisoformat(words[2]))
+                label = f"user confirms a real {int(words[1]):,} THB car repair due {words[2]}"
+                outcome = f"{result.code}: {result.message}"
+            else:  # withdraw what the position says essentials need from the reserve
+                position = assess_position(sandbox.state, 92)
+                needed = next((s.amount for s in position.shortfalls
+                               if s.kind is ShortfallKind.RESERVE_WITHDRAWAL_NEEDED), 0)
+                if needed:
+                    result = sandbox.withdraw_reserve(needed)
+                    label = f"user withdraws {needed / 100:,.0f} THB from the emergency reserve"
+                    outcome = f"{result.code}: {result.message}"
+                else:
+                    label = "user checks whether the reserve must be used"
+                    outcome = ("No withdrawal needed: unallocated cash covers essentials and "
+                               "the expense on time.")
+            parts += ["", f"## App: {label}", "", outcome]
             continue
         reply = agent.reply(AgentContext(sandbox.state, sandbox), text)
         tools = ", ".join(f"`{r.name}` (tier {r.tier.name})" for r in reply.trace) or "none"
@@ -75,6 +118,7 @@ def run() -> tuple[str, dict]:
         "audit_chain_intact": sandbox.store.verify_audit_chain(),
         "audit_log": [entry.__dict__ for entry in sandbox.store.list_audit()],
         "transactions": [dict(row) for row in sandbox.store.list_transactions()],
+        "reward_events": sandbox.store.list_reward_events(),
     }
     return "\n".join(parts) + "\n", log
 

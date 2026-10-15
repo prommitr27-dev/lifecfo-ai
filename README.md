@@ -29,7 +29,8 @@ investment advice.
 | AI layer | Provider-agnostic LLM access (Gemini free tier, Groq free plan, local Ollama, offline), agent tools with permission tiers, offline agent, chat view | Done (read and compute tools) |
 | M3 | User approval, sandbox execution, idempotency, hash-chained audit log, Sandbox view | Done |
 | Rules v0.2 | Financial Rules D1 to D9 (C1 to C10): position and deficits, buffer, reserve formula, debt interest and extra repayment, goal flexibility, acceptance tests AT1 to AT16 | Done except recording a real expense in the sandbox (see [status](docs/financial_model/RULES_V0.2_STATUS.md)) |
-| M6 | Rewards and streaks | Next |
+| M6 | Rewards: XP, levels, badges, daily and weekly streaks with grace, pause, and shock protection, adaptive recovery missions, opt-out, Rewards view; confirmed expenses and reserve withdrawals in the sandbox | Done |
+| M7 | End-to-end demo script for the 15 demo steps | Next |
 | M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
@@ -65,6 +66,7 @@ lifecfo/services/    Sandbox service: the only code path that changes state
 lifecfo/database/    SQLite store and hash-chained audit log
 scripts/             Offline demo and manual scenario report
 lifecfo/debt/        Debt interest, payoff schedules, Avalanche and Snowball
+lifecfo/rewards/     XP, missions, badges, and the streak state machine
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
 tests/               unit, integration, and expected-value scenario tests
@@ -75,6 +77,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 
 - [System architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
 - [Security design](docs/SECURITY_DESIGN.md)
+- [Rewards system](docs/REWARDS_SYSTEM.md)
 - [AI providers and zero-cost setup](docs/AI_PROVIDERS.md)
 - [Financial model](docs/financial_model/FINANCIAL_MODEL.md) and [Rules v0.2 status](docs/financial_model/RULES_V0.2_STATUS.md)
 - [Manual scenario validation](docs/testing/MANUAL_SCENARIOS.md)

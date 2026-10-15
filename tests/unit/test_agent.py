@@ -51,7 +51,7 @@ def test_registry_exposes_only_tools_within_the_tier(context):
     registry = default_registry()
     read_only = {spec.name for spec in registry.specs(Tier.READ)}
     assert read_only == {"get_financial_profile", "get_financial_goals",
-                         "get_spending_insights", "get_audit_history"}
+                         "get_spending_insights", "get_audit_history", "get_reward_status"}
     compute = {s.name for s in registry.specs(Tier.COMPUTE)}
     assert "optimize_financial_plan" in compute
     assert "request_plan_approval" not in compute

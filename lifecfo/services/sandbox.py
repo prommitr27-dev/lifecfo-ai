@@ -26,8 +26,16 @@ from typing import Any
 from lifecfo.cashflow.forecast import EventKind, forecast_cash_flow
 from lifecfo.database.store import Store
 from lifecfo.domain.clock import Clock, SystemClock
-from lifecfo.domain.models import FinancialState
+from lifecfo.domain.models import (
+    EnvelopeKind,
+    Expense,
+    ExpenseCategory,
+    FinancialState,
+    Frequency,
+)
+from lifecfo.domain.money import format_thb
 from lifecfo.optimization.plan import Plan, apply_plan, state_fingerprint, validate_plan
+from lifecfo.rewards.service import RewardsService
 
 USER = "USER"
 AGENT = "AGENT"
@@ -46,6 +54,8 @@ class SandboxService:
     def __init__(self, store: Store, clock: Clock | None = None) -> None:
         self.store = store
         self.clock = clock or SystemClock()
+        # Rewards listen to validated events only; they never change financial state.
+        self.rewards = RewardsService(store, self.clock)
 
     def _now(self) -> str:
         return self.clock.now().isoformat(timespec="seconds")
@@ -137,6 +147,8 @@ class SandboxService:
             self.store.set_plan_status(plan_id, decision)
             self._audit(actor, f"PLAN_{decision}", plan_id=plan_id, approval_id=approval_id,
                         plan_hash=row["plan_hash"], state_hash=row["state_hash"])
+        if approve:
+            self.rewards.on_plan_approved(plan_id)
         return OpResult(True, decision, f"Plan {decision.lower()}.",
                         {"plan_id": plan_id, "approval_id": approval_id})
 
@@ -200,6 +212,7 @@ class SandboxService:
             return self._refuse(actor, "DUPLICATE_EXECUTION_BLOCKED", "ALREADY_EXECUTED",
                                 "This approval was already used. Nothing was changed.",
                                 approval_id=approval_id, plan_id=plan_id)
+        self.rewards.on_state_changed()
         return OpResult(True, "EXECUTED",
                         f"The {plan.label} plan is now active in the sandbox.",
                         {"approval_id": approval_id, "plan_id": plan_id,
@@ -265,7 +278,81 @@ class SandboxService:
         except sqlite3.IntegrityError:
             return self._refuse(actor, "ADVANCE_BLOCKED", "DUPLICATE_TRANSACTION",
                                 "These events were already posted. Nothing was changed.")
+        self.rewards.on_state_changed()
         return OpResult(True, "ADVANCED",
                         f"Posted {len(rows)} transactions; the sandbox date is now "
                         f"{new_state.as_of}.",
                         {"transactions": len(rows), "as_of": new_state.as_of.isoformat()})
+
+    # --- confirmed shocks and reserve withdrawals (rules D4, C9) -------------------------
+
+    def confirm_expense(self, name: str, amount: int, on_date, actor: str = USER) -> OpResult:
+        """Record an unexpected expense the user says has really happened.
+
+        It becomes an essential obligation in the sandbox state, so every earlier
+        proposal and approval no longer matches the state and must be redone. Only
+        the user can confirm a real event; simulations never reach this method.
+        """
+        if actor != USER:
+            return self._refuse(actor, "SHOCK_REFUSED", "ONLY_USER_CAN_CONFIRM",
+                                "Only the user can confirm that an expense happened.")
+        state = self.state
+        if amount <= 0:
+            return self._refuse(actor, "SHOCK_REFUSED", "INVALID_AMOUNT",
+                                "The amount must be positive.")
+        if on_date < state.as_of:
+            return self._refuse(actor, "SHOCK_REFUSED", "IN_THE_PAST",
+                                "The sandbox has already posted that date.")
+        shock_id = f"shock-{len([e for e in state.expenses if e.id.startswith('shock-')]) + 1}"
+        expense = Expense(id=shock_id, name=f"Confirmed: {name}"[:80],
+                          category=ExpenseCategory.ESSENTIAL, amount=amount,
+                          frequency=Frequency.ONE_TIME, on_date=on_date)
+        new_state = state.model_copy(update={"expenses": (*state.expenses, expense)})
+        with self.store.transaction():
+            self.store.save_state(new_state)
+            self._audit(actor, "SHOCK_CONFIRMED", shock_id=shock_id, amount=amount,
+                        due_on=on_date.isoformat(),
+                        state_hash_before=state_fingerprint(state),
+                        state_hash_after=state_fingerprint(new_state))
+        self.rewards.on_shock_confirmed(shock_id)
+        return OpResult(True, "SHOCK_CONFIRMED",
+                        f"{format_thb(amount)} due {on_date} recorded. Earlier proposals no "
+                        "longer match your finances; generate a recovery plan.",
+                        {"shock_id": shock_id})
+
+    def withdraw_reserve(self, amount: int, actor: str = USER) -> OpResult:
+        """Move money from the emergency reserve to unallocated cash, on the user's word."""
+        if actor != USER:
+            return self._refuse(actor, "WITHDRAWAL_REFUSED", "ONLY_USER_CAN_WITHDRAW",
+                                "Only the user can withdraw from the emergency reserve.")
+        state = self.state
+        reserve = state.emergency
+        if reserve is None or amount <= 0 or amount > reserve.balance:
+            return self._refuse(actor, "WITHDRAWAL_REFUSED", "INVALID_AMOUNT",
+                                "The amount must be positive and no more than the reserve.",
+                                amount=amount)
+        envelopes = tuple(
+            e.model_copy(update={"balance": e.balance - amount}) if e.kind is EnvelopeKind.EMERGENCY
+            else e.model_copy(update={"balance": e.balance + amount})
+            if e.kind is EnvelopeKind.UNALLOCATED else e
+            for e in state.envelopes)
+        new_state = state.model_copy(update={"envelopes": envelopes})
+        now = self._now()
+        with self.store.transaction():
+            self.store.insert_transaction({
+                "idempotency_key": f"withdraw:{now}:{amount}", "kind": "RESERVE_WITHDRAWAL",
+                "ref": reserve.id, "from_envelope": reserve.id,
+                "to_envelope": state.unallocated.id, "amount": amount,
+                "effective_on": state.as_of.isoformat(), "plan_id": None, "created_at": now})
+            self.store.save_state(new_state)
+            target = new_state.emergency_target
+            self._audit(actor, "RESERVE_WITHDRAWN", amount=amount,
+                        reserve_after=reserve.balance - amount,
+                        gap_after=max(0, target - (reserve.balance - amount)),
+                        state_hash_before=state_fingerprint(state),
+                        state_hash_after=state_fingerprint(new_state))
+        return OpResult(True, "RESERVE_WITHDRAWN",
+                        f"{format_thb(amount)} moved from the emergency reserve. It now holds "
+                        f"{format_thb(reserve.balance - amount)}; the gap to its target is "
+                        f"{format_thb(max(0, target - (reserve.balance - amount)))}.",
+                        {"reserve_after": reserve.balance - amount})

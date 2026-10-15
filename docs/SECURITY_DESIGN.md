@@ -29,8 +29,8 @@ created with a maximum tier and the registry refuses anything above it.
 
 | Tier | Tools | Can change stored state |
 |---|---|---|
-| 0 READ | `get_financial_profile`, `get_financial_goals`, `get_spending_insights`, `get_audit_history` | No |
-| 1 COMPUTE | `get_cash_flow_forecast`, `optimize_financial_plan`, `simulate_income_change`, `simulate_unexpected_expense` | No. Runs on copies |
+| 0 READ | `get_financial_profile`, `get_financial_goals`, `get_spending_insights`, `get_audit_history`, `get_reward_status` | No |
+| 1 COMPUTE | `get_cash_flow_forecast`, `get_financial_position`, `optimize_financial_plan`, `compare_debt_strategies`, `simulate_income_change`, `simulate_unexpected_expense` | No. Runs on copies |
 | 2 PROPOSE | `request_plan_approval` | Stores a proposal only. Money and plan are untouched |
 | 3 EXECUTE | `execute_approved_sandbox_plan` | Yes, but only with a valid, unused approval from the user |
 
@@ -55,6 +55,8 @@ the Approve and Reject buttons in the app, and it refuses any actor other than
 | S11 | Provider failure is safe | Any provider error ends in the offline engine; no automatic provider switch, never a paid service | `test_every_provider_failure_falls_back_to_offline_mode` |
 | S12 | Secrets stay local | `.env` and the sandbox database are git-ignored; error messages never contain keys | `test_error_text_never_contains_the_api_key` |
 | S13 | No plan is invented | When essentials cannot be paid the planner returns no plan and reports the shortfall | `test_no_plan_is_invented_when_essentials_cannot_be_paid` |
+| S15 | Only the user can record real events | `confirm_expense` and `withdraw_reserve` refuse any actor other than `USER`, are audited, and change the state hash so earlier approvals lapse | `test_only_the_user_can_confirm_an_expense_or_withdraw`, `test_a_confirmed_expense_voids_earlier_proposals` |
+| S16 | Rewards cannot be granted by the agent or farmed | No tool writes rewards; every reward event id is unique per item and period | `test_review_pays_once_a_day_and_completes_the_weekly_mission`, `test_goal_milestones_pay_once_from_the_stored_state` |
 | S14 | Sandbox only | No code path opens a bank connection or handles credentials; "execution" updates the sandbox ledger | By construction |
 
 ## 4. Data handling
@@ -77,4 +79,4 @@ the Approve and Reject buttons in the app, and it refuses any actor other than
 | R5 | Free LLM tiers may log or train on prompts | Only synthetic data is sent; documented per provider |
 | R6 | The sandbox database is not encrypted at rest | Accepted: it holds synthetic data only |
 | R7 | Approval records the actor as a label passed by the caller, not a verified identity | Follows from R2 |
-| R8 | Reserve drawdown, recovery planning, and rewards are not implemented yet, so their controls are not covered here | Planned (M4 to M6) |
+| R8 | The daily check-in is a button press; it shows intent, not proof that the user reviewed anything | Accepted; it pays 10 XP at most once a day |

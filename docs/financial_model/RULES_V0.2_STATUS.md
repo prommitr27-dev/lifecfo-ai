@@ -16,7 +16,7 @@ covered by automated tests that pass; manual scenarios are in
 | C6 | Goal flexibility and allocation | Complete for proposals; applying a changed date is done by the user | `Goal.flexible`, `views.flexible_goal_alternatives`, `reasons.py` | AT9, AT10, AT14 |
 | C7 | Goals without deadlines | Complete | `optimizer.py` (no ramp, residual only) | AT11 |
 | C8 | Explanation layer | Complete | `agents/views.py`, `agents/explain.py`, `optimization/reasons.py` | AT2, AT12, AT13, AT14 |
-| C9 | Unexpected expenses and reserve withdrawals | Partial: simulation, withdrawal, gaps, and recovery proposals are done; recording a real expense or withdrawal in the sandbox is not | `views.expense_scenario` | AT12 |
+| C9 | Unexpected expenses and reserve withdrawals | Complete: simulation with withdrawal, gaps, and recovery proposals; the user can record a confirmed expense and a reserve withdrawal in the sandbox (both user-only and audited), then approve a recovery plan | `views.expense_scenario`, `SandboxService.confirm_expense`, `withdraw_reserve` | AT12, `test_rewards.py` |
 | C10 | Approval and safe execution | Complete | `lifecfo/services/sandbox.py` | AT1, AT8, AT16 |
 
 ## 2. How each decision is implemented
@@ -103,8 +103,6 @@ labelled projections; contributions and the remaining amount are reported.
 
 ## 5. Not implemented yet
 
-- Recording a confirmed expense or a reserve withdrawal in the sandbox, and
-  executing a recovery plan from it (rest of C9).
 - An in-app flow for proposing and approving preference changes (a later
   goal date, a new buffer, a new flexible budget). The system proposes these;
   the user changes them in the profile.

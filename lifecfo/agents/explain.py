@@ -341,6 +341,33 @@ def audit(data: dict[str, Any]) -> str:
     return f"Audit log hash chain: {chain}.\n\n" + ("\n".join(lines) or "- no entries yet")
 
 
+def rewards(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return f"Rewards are not available here: {data['detail']}"
+    progress = "\n".join(f"- {g['goal']}: {g['percent']}%" for g in data["goal_progress"])
+    if not data["opted_in"]:
+        return f"{data['note']}\n\nGoal progress:\n{progress or '- no goals'}"
+    streak_lines = []
+    for kind, s in data["streaks"].items():
+        label = {"DAILY": "Daily streak", "WEEKLY": "Weekly streak"}[kind]
+        state = {"NOT_STARTED": "not started yet", "ACTIVE": "active",
+                 "PROTECTED": f"protected until {s['protected_until']}",
+                 "PAUSED": "paused", "BROKEN": "ready to start again"}[s["status"]]
+        streak_lines.append(f"- {label}: {s['count']} ({state}; best {s['best']})")
+    missions = "\n".join(f"- [{'x' if m['done'] else ' '}] {m['title']}"
+                         for m in data["missions"]["items"])
+    text = (f"Level {data['level']}, {data['xp']} XP"
+            + (f" ({data['next_level_at_xp']} for the next level)"
+               if data["next_level_at_xp"] else "")
+            + ".\n\n" + "\n".join(streak_lines)
+            + f"\n\n**This week's missions** ({data['missions']['mode'].lower()})\n{missions}")
+    if data["missions"].get("note"):
+        text += f"\n{data['missions']['note']}"
+    if data["badges"]:
+        text += "\n\n**Badges**: " + ", ".join(data["badges"])
+    return text + f"\n\n**Goal progress**\n{progress or '- no goals'}\n\n{data['note']}"
+
+
 RENDERERS = {
     "get_financial_profile": profile,
     "get_financial_goals": goals,
@@ -353,6 +380,7 @@ RENDERERS = {
     "get_audit_history": audit,
     "get_financial_position": position,
     "compare_debt_strategies": debts,
+    "get_reward_status": rewards,
     "get_spending_insights": insights,
 }
 
@@ -369,6 +397,7 @@ HELP = (
     "- **Debts**: \"Compare Avalanche and Snowball\"\n"
     "- **Propose**: \"Propose the Balanced plan\" (you then approve it in the Sandbox view)\n"
     "- **Execute**: \"Execute the approved plan\"\n"
+    "- **Rewards**: \"Show my streak and missions\"\n"
     "- **Audit**: \"Show the audit log\""
 )
 

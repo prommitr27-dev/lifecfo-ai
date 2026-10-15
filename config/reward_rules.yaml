@@ -1,18 +1,34 @@
 # Rewards rules. Drafted by Member 1; reviewed by Members 2 and 3.
 # XP values come from the project brief and are configurable design
-# assumptions, not proven behavioural values. Not read by any code until M6.
+# assumptions, not proven behavioural values. XP never affects money, credit,
+# or access to any safety feature.
 
 xp:
-  FINANCIAL_REVIEW_COMPLETED: 10
-  WEEKLY_PLANNING_MISSION_COMPLETED: 20
-  GOAL_MILESTONE_REACHED: 50
-  RECOVERY_MISSION_COMPLETED: 75
+  FINANCIAL_REVIEW_COMPLETED: 10          # at most once per day
+  WEEKLY_PLANNING_MISSION_COMPLETED: 20   # at most once per mission per week
+  GOAL_MILESTONE_REACHED: 50              # once per goal per milestone, ever
+  RECOVERY_MISSION_COMPLETED: 75          # once per confirmed shock
+  PLAN_APPROVED: 0                        # counts for missions and streaks only
+  SHOCK_CONFIRMED: 0
+  STREAK_PROTECTION_ACTIVATED: 0
 
 goal_milestones_percent: [25, 50, 75, 100]
 
+# XP needed to reach each level, starting at level 1.
+level_thresholds: [0, 100, 250, 500, 1000, 2000]
+
 streak:
-  week_starts_on: monday
+  week_starts_on: monday                  # ISO weeks, in the user's time zone
   # A protected day keeps the count frozen: it neither increases nor resets.
   protected_days_increment_count: false
-  grace_days_per_week: null   # to be decided in M6
-  protection_max_days: null   # to be decided in M6
+  # DRAFT assumption: one missed day per ISO week does not break the daily streak.
+  grace_days_per_week: 1
+  # DRAFT assumption: after a confirmed shock the streak is protected for up to
+  # this many days, or until a recovery mission is completed, whichever is first.
+  protection_max_days: 14
+
+badges:
+  first_plan_approved: First plan approved
+  recovery_completed: Bounced back
+  daily_streak_7: 7-day streak
+  weekly_streak_4: 4-week streak

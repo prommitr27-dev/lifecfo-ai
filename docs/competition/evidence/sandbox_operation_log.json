@@ -84,7 +84,7 @@
     },
     {
       "seq": 7,
-      "ts": "2026-11-01T02:00:00+00:00",
+      "ts": "2026-11-02T02:00:00+00:00",
       "actor": "USER",
       "action": "TIME_ADVANCED",
       "payload": {
@@ -96,7 +96,65 @@
         "transactions": 7
       },
       "prev_hash": "2d0d6e417b485206668c7251f71eed916e9412618fbd67489ad9b1a8498a4610",
-      "hash": "ca42a6c9191943a946fb4d5240f4acf2282fb9c86e85113002aa8e15d7de105f"
+      "hash": "5cfa30ccf20a6a8677fda320b424cca956b1b9e2d7d4a3b3f2b05a7c29f1a105"
+    },
+    {
+      "seq": 8,
+      "ts": "2026-12-02T02:00:00+00:00",
+      "actor": "USER",
+      "action": "SHOCK_CONFIRMED",
+      "payload": {
+        "amount": 1000000,
+        "due_on": "2026-12-12",
+        "shock_id": "shock-1",
+        "state_hash_after": "ccba57724632def1a8c425bdbe787c915b4187b8c03599a6065fb95586ab4d99",
+        "state_hash_before": "28df2a1094e337c63d616bc396b78a1c01db8f29fb1bc3e1eccf9461d236b4f9"
+      },
+      "prev_hash": "5cfa30ccf20a6a8677fda320b424cca956b1b9e2d7d4a3b3f2b05a7c29f1a105",
+      "hash": "f4846f5229842dfbcae5acac117d1912a48eb7d87f0544e45f02a28770c4e5fa"
+    },
+    {
+      "seq": 9,
+      "ts": "2026-12-02T02:00:00+00:00",
+      "actor": "AGENT",
+      "action": "PLAN_PROPOSED",
+      "payload": {
+        "plan_hash": "1b574f41398b29b49a4978f822e141dbcc3aaf59993f98020afa3b2cb005c470",
+        "plan_id": "plan-1b574f4139",
+        "state_hash": "ccba57724632def1a8c425bdbe787c915b4187b8c03599a6065fb95586ab4d99",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "f4846f5229842dfbcae5acac117d1912a48eb7d87f0544e45f02a28770c4e5fa",
+      "hash": "1f3371ecad12b328b013fe74b9b1e59854aa4f18cd7e0522e88966cc28f87583"
+    },
+    {
+      "seq": 10,
+      "ts": "2026-12-02T02:00:00+00:00",
+      "actor": "USER",
+      "action": "PLAN_APPROVED",
+      "payload": {
+        "approval_id": "apr-baa00a61f3",
+        "plan_hash": "1b574f41398b29b49a4978f822e141dbcc3aaf59993f98020afa3b2cb005c470",
+        "plan_id": "plan-1b574f4139",
+        "state_hash": "ccba57724632def1a8c425bdbe787c915b4187b8c03599a6065fb95586ab4d99"
+      },
+      "prev_hash": "1f3371ecad12b328b013fe74b9b1e59854aa4f18cd7e0522e88966cc28f87583",
+      "hash": "b7c9d8e3ac7aeaecef9ec96ddc15b06d3127e4fee0b69e5d12a51b29281e8881"
+    },
+    {
+      "seq": 11,
+      "ts": "2026-12-02T02:00:00+00:00",
+      "actor": "AGENT",
+      "action": "PLAN_EXECUTED",
+      "payload": {
+        "approval_id": "apr-baa00a61f3",
+        "plan_id": "plan-1b574f4139",
+        "state_hash_after": "1749e210cace7940a7e468df39263809bb7420f92a210cd653e38a24aa265858",
+        "state_hash_before": "ccba57724632def1a8c425bdbe787c915b4187b8c03599a6065fb95586ab4d99",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "b7c9d8e3ac7aeaecef9ec96ddc15b06d3127e4fee0b69e5d12a51b29281e8881",
+      "hash": "8ba14acab3c6f2786f629a1c387491e3db72bd18b6a1d63b6693ce7a00ba2f60"
     }
   ],
   "transactions": [
@@ -122,7 +180,7 @@
       "amount": 3000000,
       "effective_on": "2026-11-01",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 3,
@@ -134,7 +192,7 @@
       "amount": 600000,
       "effective_on": "2026-11-02",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 4,
@@ -146,7 +204,7 @@
       "amount": 200000,
       "effective_on": "2026-11-02",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 5,
@@ -158,7 +216,7 @@
       "amount": 200000,
       "effective_on": "2026-11-02",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 6,
@@ -170,7 +228,7 @@
       "amount": 900000,
       "effective_on": "2026-11-05",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 7,
@@ -182,7 +240,7 @@
       "amount": 100000,
       "effective_on": "2026-11-15",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
     },
     {
       "id": 8,
@@ -194,7 +252,141 @@
       "amount": 1000000,
       "effective_on": "2026-11-30",
       "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
+      "created_at": "2026-11-02T02:00:00+00:00"
+    },
+    {
+      "id": 9,
+      "idempotency_key": "execute:apr-baa00a61f3",
+      "kind": "PLAN_ACTIVATION",
+      "ref": "plan-1b574f4139",
+      "from_envelope": null,
+      "to_envelope": null,
+      "amount": 0,
+      "effective_on": "2026-12-01",
+      "plan_id": "plan-1b574f4139",
+      "created_at": "2026-12-02T02:00:00+00:00"
+    }
+  ],
+  "reward_events": [
+    {
+      "event_id": "approved:plan-0d1de2471c",
+      "type": "PLAN_APPROVED",
+      "xp": 0,
+      "occurred_on": "2026-11-01",
+      "recorded_at": "2026-11-01T02:00:00+00:00",
+      "payload": {
+        "plan_id": "plan-0d1de2471c"
+      }
+    },
+    {
+      "event_id": "mission:approve_plan:2026-10-26",
+      "type": "WEEKLY_PLANNING_MISSION_COMPLETED",
+      "xp": 20,
+      "occurred_on": "2026-11-01",
+      "recorded_at": "2026-11-01T02:00:00+00:00",
+      "payload": {
+        "mission": "approve_plan",
+        "title": "Approve a plan for this month"
+      }
+    },
+    {
+      "event_id": "review:2026-11-01",
+      "type": "FINANCIAL_REVIEW_COMPLETED",
+      "xp": 10,
+      "occurred_on": "2026-11-01",
+      "recorded_at": "2026-11-01T02:00:00+00:00",
+      "payload": {}
+    },
+    {
+      "event_id": "mission:weekly_review:2026-10-26",
+      "type": "WEEKLY_PLANNING_MISSION_COMPLETED",
+      "xp": 20,
+      "occurred_on": "2026-11-01",
+      "recorded_at": "2026-11-01T02:00:00+00:00",
+      "payload": {
+        "mission": "weekly_review",
+        "title": "Weekly check-in: review your upcoming bills and your plan"
+      }
+    },
+    {
+      "event_id": "review:2026-11-02",
+      "type": "FINANCIAL_REVIEW_COMPLETED",
+      "xp": 10,
+      "occurred_on": "2026-11-02",
+      "recorded_at": "2026-11-02T02:00:00+00:00",
+      "payload": {}
+    },
+    {
+      "event_id": "mission:weekly_review:2026-11-02",
+      "type": "WEEKLY_PLANNING_MISSION_COMPLETED",
+      "xp": 20,
+      "occurred_on": "2026-11-02",
+      "recorded_at": "2026-11-02T02:00:00+00:00",
+      "payload": {
+        "mission": "weekly_review",
+        "title": "Weekly check-in: review your upcoming bills and your plan"
+      }
+    },
+    {
+      "event_id": "review:2026-12-02",
+      "type": "FINANCIAL_REVIEW_COMPLETED",
+      "xp": 10,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {}
+    },
+    {
+      "event_id": "mission:weekly_review:2026-11-30",
+      "type": "WEEKLY_PLANNING_MISSION_COMPLETED",
+      "xp": 20,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {
+        "mission": "weekly_review",
+        "title": "Weekly check-in: review your upcoming bills and your plan"
+      }
+    },
+    {
+      "event_id": "shock:shock-1",
+      "type": "SHOCK_CONFIRMED",
+      "xp": 0,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {
+        "shock_id": "shock-1"
+      }
+    },
+    {
+      "event_id": "protection:shock-1",
+      "type": "STREAK_PROTECTION_ACTIVATED",
+      "xp": 0,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {
+        "days": 14,
+        "shock_id": "shock-1"
+      }
+    },
+    {
+      "event_id": "approved:plan-1b574f4139",
+      "type": "PLAN_APPROVED",
+      "xp": 0,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {
+        "plan_id": "plan-1b574f4139"
+      }
+    },
+    {
+      "event_id": "recovery:shock-1",
+      "type": "RECOVERY_MISSION_COMPLETED",
+      "xp": 75,
+      "occurred_on": "2026-12-02",
+      "recorded_at": "2026-12-02T02:00:00+00:00",
+      "payload": {
+        "plan_id": "plan-1b574f4139",
+        "shock_id": "shock-1"
+      }
     }
   ]
 }

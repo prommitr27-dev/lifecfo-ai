@@ -448,6 +448,12 @@ def _execute(context: AgentContext, _: NoInput) -> dict[str, Any]:
             **{k: v for k, v in outcome.data.items() if k in ("plan_id", "strategy")}}
 
 
+def _rewards(context: AgentContext, _: NoInput) -> dict[str, Any]:
+    if context.sandbox is None:
+        return _NO_SANDBOX
+    return context.sandbox.rewards.status()
+
+
 def _audit(context: AgentContext, args: AuditInput) -> dict[str, Any]:
     if context.sandbox is None:
         return _NO_SANDBOX
@@ -497,6 +503,10 @@ def default_registry() -> ToolRegistry:
              "Debt interest and payoff under Avalanche, Snowball, and the user's own order "
              "over the same period, with how each interest figure was obtained and its "
              "limitations. A proposal only.", DebtCompareInput, _debts),
+        Tool("get_reward_status", Tier.READ,
+             "XP, level, streaks and their status, this week's missions, badges, and goal "
+             "progress. Read-only: the assistant cannot award or change rewards.", NoInput,
+             _rewards),
         Tool("get_audit_history", Tier.READ,
              "Recent sandbox audit log entries and whether the hash chain is intact.",
              AuditInput, _audit),

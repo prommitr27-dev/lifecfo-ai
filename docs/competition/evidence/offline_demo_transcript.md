@@ -321,9 +321,25 @@ Tools called: `execute_approved_sandbox_plan` (tier EXECUTE)
 
 Nothing was executed (NO_APPROVAL): There is no approved plan to execute. The user must approve a plan in the app first.
 
+## App: user presses "I reviewed my bills and plan today"
+
+Check-in recorded.
+
+## App: one day passes
+
+Clock: 2026-11-02
+
+## App: user presses "I reviewed my bills and plan today"
+
+Check-in recorded.
+
 ## App: user posts 30 days of scheduled transactions
 
 ADVANCED: Posted 7 transactions; the sandbox date is now 2026-12-01.
+
+## App: user presses "I reviewed my bills and plan today"
+
+Check-in recorded.
 
 ## User: Show my financial summary
 
@@ -337,16 +353,120 @@ As of 2026-12-01 you hold 16,000 THB in the sandbox account: 0 THB unallocated a
 - Flexible budget: 2,000 THB (can be cut to 2,000 THB)
 - Planned savings: 10,000 THB
 
+## User: Show my streak and missions
+
+Tools called: `get_reward_status` (tier READ)
+
+Level 2, 110 XP (250 for the next level).
+
+- Daily streak: 1 (active; best 2)
+- Weekly streak: 1 (active; best 2)
+
+**This week's missions** (normal)
+- [x] Weekly check-in: review your upcoming bills and your plan
+- [ ] Approve a plan for this month
+
+**Badges**: First plan approved
+
+**Goal progress**
+- New laptop: 0.0%
+- Vacation: 0.0%
+
+XP and levels are for motivation only. They never affect money, plans, or access to any feature.
+
+## App: user confirms a real 10,000 THB car repair due 2026-12-12
+
+SHOCK_CONFIRMED: 10,000.00 THB due 2026-12-12 recorded. Earlier proposals no longer match your finances; generate a recovery plan.
+
+## User: Show my streak and missions
+
+Tools called: `get_reward_status` (tier READ)
+
+Level 2, 110 XP (250 for the next level).
+
+- Daily streak: 1 (protected until 2026-12-15; best 2)
+- Weekly streak: 1 (protected until 2026-12-15; best 2)
+
+**This week's missions** (recovery)
+- [ ] Review your recovery options after the unexpected expense
+- [ ] Approve a feasible recovery plan
+Your missions changed because of a confirmed expense. Your streak is protected meanwhile; saving is not expected this week.
+
+**Badges**: First plan approved
+
+**Goal progress**
+- New laptop: 0.0%
+- Vacation: 0.0%
+
+XP and levels are for motivation only. They never affect money, plans, or access to any feature.
+
+## User: Where do I stand?
+
+Tools called: `get_financial_position` (tier COMPUTE)
+
+**Your position under your own budget** (before any proposal)
+- Each month: income 30,000 THB, essentials 18,000 THB, debt minimums 0 THB, flexible budget 2,000 THB; 10,000 THB left for savings.
+- Original budget over the horizon: no cash gap.
+- Cash now: 0 THB unallocated, 16,000 THB emergency reserve, 0 THB already committed to goals.
+- Until 2026-12-31: 30,000 THB income against 30,000 THB of bills and flexible spending, leaving 0 THB uncommitted.
+- Emergency reserve target 54,000 THB (3 months x (essentials + debt minimums)); 16,000 THB saved, gap 38,000 THB.
+- Cash buffer 18,000 THB: accessible cash is 16,000 THB, 2,000 THB below it.
+- **Cash buffer shortfall** of 2,000 THB: Accessible cash (unallocated plus emergency reserve) is below the configured minimum cash buffer. Goal contributions and extra repayments wait until it is restored.
+
+## App: user checks whether the reserve must be used
+
+No withdrawal needed: unallocated cash covers essentials and the expense on time.
+
+## User: Propose the Safety First plan
+
+Tools called: `request_plan_approval` (tier PROPOSE)
+
+I stored the **Safety First** plan as proposal `plan-1b574f4139`. It is waiting for your decision: open the Sandbox view and press Approve or Reject. I cannot approve it for you, and nothing has changed yet.
+
+## App: user presses Approve on `plan-1b574f4139`
+
+APPROVED: Plan approved.
+
+## User: Execute the approved plan
+
+Tools called: `execute_approved_sandbox_plan` (tier EXECUTE)
+
+Done. The Safety First plan is now active in the sandbox. Plan `plan-1b574f4139` was executed under your approval and recorded in the audit log. No real account was touched.
+
+## User: Show my streak and missions
+
+Tools called: `get_reward_status` (tier READ)
+
+Level 2, 185 XP (250 for the next level).
+
+- Daily streak: 1 (active; best 2)
+- Weekly streak: 1 (active; best 2)
+
+**This week's missions** (normal)
+- [x] Weekly check-in: review your upcoming bills and your plan
+- [ ] Approve a plan for this month
+
+**Badges**: First plan approved, Bounced back
+
+**Goal progress**
+- New laptop: 0.0%
+- Vacation: 0.0%
+
+XP and levels are for motivation only. They never affect money, plans, or access to any feature.
+
 ## User: Show the audit log
 
 Tools called: `get_audit_history` (tier READ)
 
 Audit log hash chain: intact.
 
-- #1 2026-11-01T02:00:00+00:00 SYSTEM: SANDBOX_RESET
 - #2 2026-11-01T02:00:00+00:00 AGENT: PLAN_PROPOSED plan-0d1de2471c
 - #3 2026-11-01T02:00:00+00:00 AGENT: EXECUTION_REFUSED (NO_APPROVAL)
 - #4 2026-11-01T02:00:00+00:00 USER: PLAN_APPROVED plan-0d1de2471c
 - #5 2026-11-01T02:00:00+00:00 AGENT: PLAN_EXECUTED plan-0d1de2471c
 - #6 2026-11-01T02:00:00+00:00 AGENT: EXECUTION_REFUSED (NO_APPROVAL)
-- #7 2026-11-01T02:00:00+00:00 USER: TIME_ADVANCED
+- #7 2026-11-02T02:00:00+00:00 USER: TIME_ADVANCED
+- #8 2026-12-02T02:00:00+00:00 USER: SHOCK_CONFIRMED
+- #9 2026-12-02T02:00:00+00:00 AGENT: PLAN_PROPOSED plan-1b574f4139
+- #10 2026-12-02T02:00:00+00:00 USER: PLAN_APPROVED plan-1b574f4139
+- #11 2026-12-02T02:00:00+00:00 AGENT: PLAN_EXECUTED plan-1b574f4139

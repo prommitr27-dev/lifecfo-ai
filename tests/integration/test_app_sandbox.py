@@ -99,3 +99,24 @@ def test_reset_returns_the_sandbox_to_the_demo_profile():
     db = store()
     assert db.list_plans() == []
     assert [e.action for e in db.list_audit()] == ["SANDBOX_RESET"]
+
+
+def test_rewards_view_check_in_and_recovery_flow():
+    rewards = open_view("Rewards")
+    assert not rewards.exception
+    button(rewards, "I reviewed my bills and plan today").click().run()
+    assert any("Check-in recorded" in s.value for s in rewards.success)
+    assert any(m.label == "Daily streak" and m.value == "1" for m in rewards.metric)
+
+    sandbox = open_view("Sandbox")
+    sandbox.button(key="FormSubmitter:confirm_expense-Confirm this expense").click().run()
+    assert any("SHOCK_CONFIRMED" in s.value for s in sandbox.success)
+    rewards = open_view("Rewards")
+    assert any("Your missions changed" in i.value for i in rewards.info)
+
+
+def test_turning_rewards_off_records_nothing():
+    rewards = open_view("Rewards")
+    rewards.toggle[0].set_value(False).run()
+    assert not [b for b in rewards.button if "reviewed" in b.label]
+    assert store().list_reward_events() == []

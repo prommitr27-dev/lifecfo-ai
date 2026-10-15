@@ -24,7 +24,7 @@ from lifecfo.cashflow import (
 from lifecfo.database import Store
 from lifecfo.domain.loader import load_state
 from lifecfo.domain.models import FinancialState
-from lifecfo.domain.money import SATANG_PER_THB, format_thb
+from lifecfo.domain.money import SATANG_PER_THB, format_thb, thb
 from lifecfo.llm import LLMSettings, load_env_file
 from lifecfo.optimization import PlanningResult, PlanningStatus, generate_plans
 from lifecfo.services import OpResult, SandboxService
@@ -32,7 +32,7 @@ from lifecfo.services import OpResult, SandboxService
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "data" / "synthetic" / "profile_demo.yaml"
 DB_PATH = Path(os.environ.get("LIFECFO_DB_PATH") or ROOT / ".lifecfo" / "sandbox.db")
-VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat", "Sandbox"]
+VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
 
 
 @st.cache_resource
@@ -184,6 +184,72 @@ elif view == "AI CFO chat":
             show_reply(reply)
         history.append({"role": "assistant", "reply": reply})
 
+elif view == "Rewards":
+    rewards = sandbox.rewards
+    message = st.session_state.pop("rewards_message", None)
+    if message:
+        st.success(message)
+    opted_in = st.toggle("Use rewards and streaks", value=rewards.opted_in,
+                         help="Switching off stops all recording. Goal progress stays visible.")
+    if opted_in != rewards.opted_in:
+        rewards.set_opt_in(opted_in)
+        st.rerun()
+    data = rewards.status()
+
+    st.subheader("Goal progress")
+    for goal in data["goal_progress"]:
+        st.progress(min(1.0, goal["percent"] / 100),
+                    text=f"{goal['goal']}: {format_thb(goal['saved'])} of "
+                         f"{format_thb(goal['target'])} ({goal['percent']}%)")
+
+    if data["opted_in"]:
+        st.subheader("Your CFO companion")
+        with st.container(border=True, horizontal=True, vertical_alignment="center"):
+            st.markdown(":material/savings: **Level " + str(data["level"]) + "**")
+            if data["next_level_at_xp"]:
+                st.progress(data["xp"] / data["next_level_at_xp"],
+                            text=f"{data['xp']} of {data['next_level_at_xp']} XP to the next "
+                                 "level")
+            else:
+                st.markdown(f"{data['xp']} XP, top level")
+
+        with st.container(horizontal=True):
+            for kind, streak in data["streaks"].items():
+                label = "Daily streak" if kind == "DAILY" else "Weekly streak"
+                state = {"NOT_STARTED": "Not started", "ACTIVE": "Active",
+                         "PROTECTED": f"Protected until {streak['protected_until']}",
+                         "PAUSED": "Paused", "BROKEN": "Start again any time"}[streak["status"]]
+                st.metric(label, streak["count"], border=True, help=f"Best: {streak['best']}",
+                          delta=state, delta_color="off")
+
+        st.subheader("This week's missions")
+        if data["missions"].get("note"):
+            st.info(data["missions"]["note"])
+        for mission in data["missions"]["items"]:
+            st.checkbox(mission["title"], value=mission["done"], disabled=True,
+                        key=f"mission-{mission['id']}")
+        with st.container(horizontal=True):
+            if st.button("I reviewed my bills and plan today", icon=":material/task_alt:",
+                         type="primary"):
+                recorded = rewards.record_review()
+                st.session_state["rewards_message"] = (
+                    "Check-in recorded." if recorded else "Already recorded for today.")
+                st.rerun()
+            if any(s["status"] == "PAUSED" for s in data["streaks"].values()):
+                if st.button("Resume streaks", icon=":material/play_arrow:"):
+                    rewards.resume_streaks()
+                    st.rerun()
+            elif st.button("Pause streaks", icon=":material/pause:"):
+                rewards.pause_streaks()
+                st.rerun()
+
+        if data["badges"]:
+            st.subheader("Badges")
+            st.pills("Badges", data["badges"], disabled=True, label_visibility="collapsed")
+        st.caption(data["note"])
+    else:
+        st.caption(data["note"])
+
 elif view == "Sandbox":
     message = st.session_state.pop("sandbox_message", None)
     if message:
@@ -224,6 +290,27 @@ elif view == "Sandbox":
             if st.button("Execute in sandbox", key=f"execute-{approval['id']}", type="primary",
                          icon=":material/play_arrow:"):
                 report_result(sandbox.execute(approval["id"], "USER"))
+
+    st.subheader("Record something that really happened")
+    st.caption("Use this only for real events, not what-ifs. A confirmed expense becomes an "
+               "essential bill, so earlier proposals must be redone.")
+    with st.form("confirm_expense", border=True):
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            shock_name = st.text_input("What was it?", value="Car repair", max_chars=60)
+            shock_amount = st.number_input("Amount (THB)", min_value=1, max_value=10_000_000,
+                                           value=10000, step=500)
+            shock_date = st.date_input("Due on", value=stored.as_of, min_value=stored.as_of)
+        if st.form_submit_button("Confirm this expense", icon=":material/report:"):
+            report_result(sandbox.confirm_expense(shock_name, thb(shock_amount), shock_date))
+    if stored.emergency is not None and stored.emergency.balance > 0:
+        with st.form("withdraw_reserve", border=True):
+            with st.container(horizontal=True, vertical_alignment="bottom"):
+                amount = st.number_input(
+                    "Withdraw from the emergency reserve (THB)", min_value=1,
+                    max_value=int(stored.emergency.balance // SATANG_PER_THB),
+                    value=min(1000, int(stored.emergency.balance // SATANG_PER_THB)), step=500)
+                if st.form_submit_button("Withdraw", icon=":material/savings:"):
+                    report_result(sandbox.withdraw_reserve(thb(amount)))
 
     st.subheader("Move time forward")
     with st.container(horizontal=True, vertical_alignment="bottom"):
