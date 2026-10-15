@@ -43,6 +43,7 @@ from lifecfo.domain.schedule import clamp_day
 from lifecfo.llm.base import ToolSpec
 from lifecfo.optimization import Plan, PlanningResult, PlanningStatus, generate_plans
 from lifecfo.optimization.optimizer import horizon_days
+from lifecfo.optimization.reasons import deferral_reasons
 from lifecfo.services.sandbox import AGENT, SandboxService
 
 
@@ -304,8 +305,9 @@ def _insights(context: AgentContext, _: NoInput) -> dict[str, Any]:
     }
 
 
-def _plan_data(plan: Plan) -> dict[str, Any]:
+def _plan_data(plan: Plan, state: FinancialState) -> dict[str, Any]:
     first = plan.months[0]
+    reasons = deferral_reasons(state, plan)
     return {
         "strategy": plan.label,
         "emergency_fund_target_reached": plan.reserve.reached_month if plan.reserve else None,
@@ -316,6 +318,7 @@ def _plan_data(plan: Plan) -> dict[str, Any]:
                 "deadline": g.deadline.isoformat() if g.deadline else None,
                 "on_track": g.on_track,
                 "shortfall_at_deadline": baht(g.shortfall_at_deadline),
+                "why_late": reasons.get(g.goal_id),
             }
             for g in plan.goals
         ],
@@ -374,7 +377,7 @@ def _planning_data(state: FinancialState, horizon_months: int) -> dict[str, Any]
     result = generate_plans(state, horizon_months=horizon_months)
     data: dict[str, Any] = {"status": result.status.value, "horizon_months": horizon_months}
     if result.status is PlanningStatus.OK:
-        data["plans"] = [_plan_data(plan) for plan in result.plans]
+        data["plans"] = [_plan_data(plan, state) for plan in result.plans]
         data["tradeoffs"] = tradeoff_facts(result)
     else:
         data["plans"] = []
@@ -390,11 +393,74 @@ def _optimize(context: AgentContext, args: PlanInput) -> dict[str, Any]:
     return _planning_data(context.state, args.horizon_months)
 
 
+def _compare(before: FinancialState, after: FinancialState, months: int) -> dict[str, Any]:
+    """The same checks on the current state and on the changed one, over one horizon."""
+    days = horizon_days(before.as_of, months)
+    base_cash, new_cash = _feasibility_data(before, days), _feasibility_data(after, days)
+    base_plan = generate_plans(before, horizon_months=months)
+    new_plan = generate_plans(after, horizon_months=months)
+    facts: list[str] = []
+
+    if base_cash["status"] != new_cash["status"]:
+        facts.append(f"Current plan status changes from {base_cash['status']} to "
+                     f"{new_cash['status']}.")
+    if new_cash["largest_shortfall"] > base_cash["largest_shortfall"]:
+        facts.append(
+            f"New cash deficit: the current plan would be short by up to "
+            f"{new_cash['largest_shortfall']:,} THB (before: "
+            f"{base_cash['largest_shortfall']:,} THB), first on "
+            f"{new_cash['first_shortfall_on']}.")
+    if new_cash["lowest_unallocated_cash"] < base_cash["lowest_unallocated_cash"]:
+        facts.append(
+            f"Lowest unallocated cash falls from {base_cash['lowest_unallocated_cash']:,} THB "
+            f"to {new_cash['lowest_unallocated_cash']:,} THB.")
+    if new_cash["essential_shortfall"] > base_cash["essential_shortfall"]:
+        facts.append(
+            f"Liquidity risk: essentials could not be paid on time; the shortfall reaches "
+            f"{new_cash['essential_shortfall']:,} THB.")
+
+    if base_plan.status is PlanningStatus.OK and new_plan.status is not PlanningStatus.OK:
+        facts.append(f"No regular plan exists any more ({new_plan.status.value}).")
+    elif base_plan.status is PlanningStatus.OK and new_plan.status is PlanningStatus.OK:
+        old_by = {p.strategy: p for p in base_plan.plans}
+        for plan in new_plan.plans:
+            old = old_by[plan.strategy]
+            if old.reserve and plan.reserve and (
+                    old.reserve.reached_month != plan.reserve.reached_month):
+                facts.append(
+                    f"{plan.label}: emergency fund target reached "
+                    f"{plan.reserve.reached_month or 'not within the horizon'} "
+                    f"(before: {old.reserve.reached_month or 'not within the horizon'}).")
+            for old_goal, goal in zip(old.goals, plan.goals, strict=True):
+                if old_goal.completion_month != goal.completion_month:
+                    facts.append(
+                        f"{plan.label}: {goal.name} "
+                        + (f"completes in {goal.completion_month}" if goal.completion_month
+                           else "does not complete within the horizon")
+                        + f" (before: {old_goal.completion_month or 'not within the horizon'}).")
+                if old_goal.on_track is not False and goal.on_track is False:
+                    facts.append(
+                        f"{plan.label}: {goal.name} now misses its deadline "
+                        f"{goal.deadline} by {baht(goal.shortfall_at_deadline):,} THB.")
+    return {
+        "horizon_months": months,
+        "horizon_days": days,
+        "baseline_current_plan_status": base_cash["status"],
+        "baseline_largest_shortfall": base_cash["largest_shortfall"],
+        "baseline_planning_status": base_plan.status.value,
+        "changes": facts or ["No change in status, shortfall, or goal timing."],
+    }
+
+
 def _income_change(context: AgentContext, args: IncomeChangeInput) -> dict[str, Any]:
     state = context.state
     factor = 100 + args.percent
+    # The change applies to recurring income for the whole horizon. One-off income
+    # (a bonus, a refund) is left as it is: it is not part of the regular pay that changed.
     incomes = tuple(
-        i.model_copy(update={"amount": round(i.amount * factor / 100)}) for i in state.incomes
+        i.model_copy(update={"amount": round(i.amount * factor / 100)})
+        if i.frequency is Frequency.MONTHLY else i
+        for i in state.incomes
     )
     changed = state.model_copy(update={"incomes": tuple(i for i in incomes if i.amount > 0)})
     return {
@@ -405,6 +471,9 @@ def _income_change(context: AgentContext, args: IncomeChangeInput) -> dict[str, 
         "current_plan": _feasibility_data(
             changed, horizon_days(changed.as_of, args.horizon_months)),
         "replanning": _planning_data(changed, args.horizon_months),
+        "compared_with_current": _compare(state, changed, args.horizon_months),
+        "assumption": "The change applies to recurring income only, from today to the end "
+                      "of the horizon; one-off income is unchanged.",
     }
 
 
@@ -435,6 +504,7 @@ def _unexpected_expense(context: AgentContext, args: UnexpectedExpenseInput) -> 
         "current_plan": _feasibility_data(
             changed, horizon_days(changed.as_of, args.horizon_months)),
         "replanning_without_touching_savings": _planning_data(changed, args.horizon_months),
+        "compared_with_current": _compare(state, changed, args.horizon_months),
         "limitation": (
             "Replanning here pays the expense from income and unallocated cash only. Using "
             "the emergency fund is a recovery decision that needs the user's approval and "

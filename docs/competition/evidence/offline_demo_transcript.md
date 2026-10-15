@@ -85,6 +85,22 @@ Hypothetical scenario (nothing was saved): a 20% income drop puts monthly income
 **Effect on the current plan**
 Your current plan cannot be funded. Unallocated cash first goes negative on 2026-11-05 and the plan ends up 72,000 THB short within 365 days. Essential bills can still be paid, so this can be fixed by replanning.
 
+**Compared with your current situation** (same 12-month horizon)
+- Current plan status changes from FEASIBLE to PLAN_INFEASIBLE.
+- New cash deficit: the current plan would be short by up to 72,000 THB (before: 0 THB), first on 2026-11-05.
+- Lowest unallocated cash falls from 0 THB to -72,000 THB.
+- Safety First: emergency fund target reached 2027-01 (before: 2026-12).
+- Safety First: New laptop completes in 2027-08 (before: 2027-04).
+- Safety First: Vacation does not complete within the horizon (before: 2027-05).
+- Safety First: Vacation now misses its deadline 2027-06-30 by 13,000 THB.
+- Balanced: New laptop completes in 2027-08 (before: 2027-05).
+- Balanced: Vacation does not complete within the horizon (before: 2027-05).
+- Balanced: Vacation now misses its deadline 2027-06-30 by 15,000 THB.
+- Goal First: emergency fund target reached not within the horizon (before: 2027-05).
+- Goal First: New laptop completes in 2027-08 (before: 2027-04).
+- Goal First: Vacation completes in 2027-09 (before: 2027-04).
+- Goal First: Vacation now misses its deadline 2027-06-30 by 1,875 THB.
+
 **Replanning**
 I generated 3 plans over 12 months. Each one passed the deterministic validator and the daily cash check.
 
@@ -92,16 +108,19 @@ I generated 3 plans over 12 months. Each one passed the deterministic validator 
 - Emergency fund target reached: 2027-01
 - Goals: New laptop done 2027-08; Vacation not finished within the horizon (misses its deadline by 13,000 THB)
 - 2026-11: saves emergency 5,000 THB; flexible spending 1,000 THB
+  - Why Vacation is late: Vacation (priority 2) needs 15,000.00 THB by 2027-06-30. In the 8 month(s) before then, Safety First puts 2,000.00 THB into it and sends 24,000.00 THB to New laptop (priority 1), 14,000.00 THB to the emergency fund, so it is 13,000.00 THB short at the deadline. The deadline itself is not changed. The target is reachable on time only if other goals or the emergency fund wait.
 
 **Balanced**
 - Emergency fund target reached: 2027-04
 - Goals: New laptop done 2027-08; Vacation not finished within the horizon (misses its deadline by 15,000 THB)
 - 2026-11: saves emergency 2,333 THB, env-laptop 2,666 THB; flexible spending 1,000 THB
+  - Why Vacation is late: Vacation (priority 2) needs 15,000.00 THB by 2027-06-30. In the 8 month(s) before then, Balanced puts 0.00 THB into it and sends 24,000.00 THB to New laptop (priority 1), 14,000.00 THB to the emergency fund, so it is 15,000.00 THB short at the deadline. The deadline itself is not changed. The target is reachable on time only if other goals or the emergency fund wait.
 
 **Goal First**
 - Emergency fund target reached: not within the horizon
 - Goals: New laptop done 2027-08; Vacation done 2027-09 (misses its deadline by 1,875 THB)
 - 2026-11: saves emergency 125 THB, env-laptop 3,000 THB, env-travel 1,875 THB; flexible spending 1,000 THB
+  - Why Vacation is late: Vacation (priority 2) needs 15,000.00 THB by 2027-06-30. In the 8 month(s) before then, Goal First puts 13,125.00 THB into it and sends 24,000.00 THB to New laptop (priority 1), 250.00 THB to the emergency fund, so it is 1,875.00 THB short at the deadline. The deadline itself is not changed. The target is reachable on time only if other goals or the emergency fund wait.
 
 **Trade-offs**
 - Safety First fills the emergency fund by 2027-01; Balanced takes until 2027-04.
@@ -112,6 +131,8 @@ I generated 3 plans over 12 months. Each one passed the deterministic validator 
 
 These are proposals. Nothing changes until you approve a plan.
 
+Assumption: The change applies to recurring income only, from today to the end of the horizon; one-off income is unchanged.
+
 ## User: What if my salary is cut by 50%?
 
 Tools called: `simulate_income_change` (tier COMPUTE)
@@ -121,8 +142,17 @@ Hypothetical scenario (nothing was saved): a 50% income drop puts monthly income
 **Effect on the current plan**
 Essential bills cannot be paid. Even with flexible spending at its minimum and all savings used, you would be 42,000 THB short within 365 days. I will not suggest a plan that does not exist; income or essential costs have to change first.
 
+**Compared with your current situation** (same 12-month horizon)
+- Current plan status changes from FEASIBLE to ESSENTIAL_SHORTFALL.
+- New cash deficit: the current plan would be short by up to 180,000 THB (before: 0 THB), first on 2026-11-02.
+- Lowest unallocated cash falls from 0 THB to -180,000 THB.
+- Liquidity risk: essentials could not be paid on time; the shortfall reaches 42,000 THB.
+- No regular plan exists any more (ESSENTIAL_SHORTFALL).
+
 **Replanning**
 No plan can be offered: essential bills cannot be paid, and the shortfall reaches 42,000 THB from 2026-12-05.
+
+Assumption: The change applies to recurring income only, from today to the end of the horizon; one-off income is unchanged.
 
 ## User: What if I get a 10,000 THB repair bill?
 
@@ -134,6 +164,19 @@ Your emergency fund holds 6,000 THB, so 4,000 THB of the expense is not covered 
 
 **Effect on the current plan**
 Your current plan cannot be funded. Unallocated cash first goes negative on 2026-11-05 and the plan ends up 10,000 THB short within 365 days. Essential bills can still be paid, so this can be fixed by replanning.
+
+**Compared with your current situation** (same 12-month horizon)
+- Current plan status changes from FEASIBLE to PLAN_INFEASIBLE.
+- New cash deficit: the current plan would be short by up to 10,000 THB (before: 0 THB), first on 2026-11-05.
+- Lowest unallocated cash falls from 0 THB to -10,000 THB.
+- Safety First: emergency fund target reached 2027-01 (before: 2026-12).
+- Safety First: New laptop completes in 2027-06 (before: 2027-04).
+- Safety First: Vacation completes in 2027-06 (before: 2027-05).
+- Balanced: New laptop completes in 2027-06 (before: 2027-05).
+- Balanced: Vacation completes in 2027-06 (before: 2027-05).
+- Goal First: emergency fund target reached 2027-06 (before: 2027-05).
+- Goal First: New laptop completes in 2027-05 (before: 2027-04).
+- Goal First: Vacation completes in 2027-05 (before: 2027-04).
 
 **Replanning without touching savings**
 I generated 3 plans over 12 months. Each one passed the deterministic validator and the daily cash check.

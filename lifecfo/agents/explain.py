@@ -84,6 +84,10 @@ def plans(data: dict[str, Any]) -> str:
                else f" (misses its deadline by {thb(g['shortfall_at_deadline'])})")
             for g in plan["goals"]
         )
+        reasons = "".join(
+            f"\n  - Why {g['name']} is late: {g['why_late']}"
+            for g in plan["goals"] if g.get("why_late")
+        )
         contributions = ", ".join(
             f"{name} {thb(amount)}" for name, amount in plan["first_month_contributions"].items()
         ) or "nothing"
@@ -94,6 +98,7 @@ def plans(data: dict[str, Any]) -> str:
             f"- Goals: {goal_lines or 'none'}\n"
             f"- {plan['first_month']}: saves {contributions}; flexible spending "
             f"{thb(plan['first_month_flexible_spending'])}"
+            + reasons
         )
     text = (
         f"I generated {len(data['plans'])} plans over {data['horizon_months']} months. Each "
@@ -105,13 +110,21 @@ def plans(data: dict[str, Any]) -> str:
     return text + "\n\nThese are proposals. Nothing changes until you approve a plan."
 
 
+def comparison(data: dict[str, Any]) -> str:
+    changes = "\n".join(f"- {fact}" for fact in data["changes"])
+    return (f"**Compared with your current situation** (same {data['horizon_months']}-month "
+            f"horizon)\n{changes}")
+
+
 def income_change(data: dict[str, Any]) -> str:
     direction = "drop" if data["income_change_percent"] < 0 else "rise"
     return (
         f"Hypothetical scenario (nothing was saved): a {abs(data['income_change_percent']):g}% "
         f"income {direction} puts monthly income at {thb(data['new_monthly_income'])}.\n\n"
         f"**Effect on the current plan**\n{forecast(data['current_plan'])}\n\n"
-        f"**Replanning**\n{plans(data['replanning'])}"
+        f"{comparison(data['compared_with_current'])}\n\n"
+        f"**Replanning**\n{plans(data['replanning'])}\n\n"
+        f"Assumption: {data['assumption']}"
     )
 
 
@@ -130,6 +143,7 @@ def unexpected_expense(data: dict[str, Any]) -> str:
         f"Hypothetical scenario (nothing was saved): an unexpected expense of "
         f"{thb(data['expense_amount'])} due on {data['expense_due_on']}.\n\n{fund_line}\n\n"
         f"**Effect on the current plan**\n{forecast(data['current_plan'])}\n\n"
+        f"{comparison(data['compared_with_current'])}\n\n"
         f"**Replanning without touching savings**\n"
         f"{plans(data['replanning_without_touching_savings'])}\n\n"
         f"Note: {data['limitation']}"
