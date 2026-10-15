@@ -8,11 +8,17 @@ Decision variables, per month t of the horizon:
           the last day of the month
   th[t]   share of the cuttable part of flexible spending that is kept, 0..1
   s[e,t]  how far envelope e is behind its ramp at the end of month t
+  z[t]    extra debt repayment (cash), only from money left after every ramp
+  b[t]    how far accessible cash is below the user's buffer after the sweep
 
 Hard constraints:
   - unallocated cash is never negative on any day that has a scheduled event
     (essentials and debt minimums are always paid in full)
   - an envelope never receives more than it still needs
+  - extra repayments never exceed what is owed
+
+The buffer (rules D3) is a heavily weighted soft constraint: when it cannot be
+met, the shortfall is reported per month instead of the plan being withheld.
 
 The solution is rounded down to whole baht on cumulative contributions, which
 can only leave more cash on hand, and is then re-checked by `validate_plan`
@@ -21,14 +27,22 @@ against the daily forecast before it is returned.
 
 import calendar
 import math
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 from scipy.optimize import linprog
 
 from lifecfo.cashflow.feasibility import check_feasibility
 from lifecfo.cashflow.forecast import EventKind, build_events, forecast_cash_flow
-from lifecfo.domain.models import EnvelopeKind, ExpenseCategory, FinancialState
+from lifecfo.cashflow.position import ShortfallKind, assess_position
+from lifecfo.debt.schedule import balance_after, payoff_order
+from lifecfo.domain.models import (
+    EnvelopeKind,
+    ExpenseCategory,
+    ExtraDebtPayment,
+    FinancialState,
+    Frequency,
+)
 from lifecfo.domain.money import SATANG_PER_THB
 from lifecfo.optimization.plan import (
     GoalProjection,
@@ -130,82 +144,130 @@ def _months_until(deadline: date | None, spans: list[tuple[date, date]]) -> int:
 def optimize_plan(
     state: FinancialState, strategy: StrategyConfig, horizon_months: int = 12
 ) -> Plan | None:
-    """Best plan for one strategy, or None when essentials cannot be funded from income.
+    """Best plan for one strategy, or None when the flexible minimum cannot be funded.
 
-    Existing `state.transfers` are ignored: the plan replaces them.
+    Existing `state.transfers` and `state.debt_payments` are ignored: the plan
+    replaces them. Nothing here changes the user's preferences: deadlines, targets,
+    priorities, the buffer, and the flexible budget are inputs, and any flexible
+    reduction in the result is a proposal that needs approval.
     """
     if horizon_months < 1:
         raise ValueError("horizon_months must be at least 1")
 
-    spans = _periods(state.as_of, horizon_months)
-    periods = _build_periods(state, spans)
+    base = state.model_copy(update={"transfers": (), "debt_payments": ()})
+    spans = _periods(base.as_of, horizon_months)
+    periods = _build_periods(base, spans)
     n_months = horizon_months
-    opening = state.unallocated.balance / SATANG_PER_THB
-    goals = {g.id: g for g in state.goals}
+    opening = base.unallocated.balance / SATANG_PER_THB
+    goals = {g.id: g for g in base.goals}
+    reserve_envelope = base.emergency
+    reserve_now = (reserve_envelope.balance if reserve_envelope else 0) / SATANG_PER_THB
+    buffer = base.buffer_target
 
-    # Envelopes that can receive money: (envelope, remaining need in baht, weight,
+    # Envelopes that can receive money: (envelope, remaining need in baht, ramp weight,
     # surplus bonus, months to reach the target).
     targets = []
-    for envelope in state.envelopes:
+    for envelope in base.envelopes:
         if envelope.kind is EnvelopeKind.EMERGENCY:
-            need = max(0, state.reserve_target - envelope.balance)
+            need = max(0, base.emergency_target - envelope.balance)
             targets.append((envelope, need / SATANG_PER_THB, strategy.reserve_weight,
                             strategy.surplus_reserve, strategy.reserve_ramp_months))
         elif envelope.kind is EnvelopeKind.GOAL:
             goal = goals[envelope.goal_id]
             factor = strategy.priority_factor(goal.priority)
             need = max(0, goal.target - envelope.balance)
-            targets.append((envelope, need / SATANG_PER_THB, strategy.goal_weight * factor,
+            # Rules D9: a goal without a deadline has no ramp. It only takes money left
+            # after time-bound goals, so its allocation does not depend on the horizon.
+            weight = strategy.goal_weight * factor if goal.deadline else 0.0
+            targets.append((envelope, need / SATANG_PER_THB, weight,
                             strategy.surplus_goal * factor, _months_until(goal.deadline, spans)))
     n_env = len(targets)
+    goal_rows = [e for e, target in enumerate(targets)
+                 if target[0].kind is EnvelopeKind.GOAL]
+
+    order = payoff_order(base)
+    debt_room = sum(d.balance for d in base.debts if d.id in order) / SATANG_PER_THB
+    use_debt = strategy.surplus_debt > 0 and debt_room > 0
+
+    # Variable layout.
+    index = 0
+
+    def block(size: int) -> int:
+        nonlocal index
+        start, index = index, index + size
+        return start
+
+    x0 = block(n_env * n_months)  # contributions
+    th0 = block(n_months)  # share of the cuttable flexible spending kept
+    s0 = block(n_env * n_months)  # behind-the-ramp shortfall
+    z0 = block(n_months) if use_debt else -1  # extra debt repayment (cash)
+    b0 = block(n_months) if buffer is not None else -1  # buffer shortfall
 
     def x(e: int, t: int) -> int:
-        return e * n_months + t
+        return x0 + e * n_months + t
 
     def th(t: int) -> int:
-        return n_env * n_months + t
+        return th0 + t
 
     def s(e: int, t: int) -> int:
-        return n_env * n_months + n_months + e * n_months + t
+        return s0 + e * n_months + t
 
-    n_vars = 2 * n_env * n_months + n_months
+    n_vars = index
     rows: list[np.ndarray] = []
     rhs: list[float] = []
 
-    # Liquidity: unallocated cash stays non-negative on every event day and after
-    # each month-end sweep.
-    carried = opening  # cash carried in if nothing is saved and flexible is at its floor
+    # Liquidity: unallocated cash stays non-negative on every event day and after each
+    # month-end sweep. Essentials and debt minimums are constants: always paid in full.
+    carried = opening  # cash carried in if nothing is allocated and flexible is at floor
     for t, period in enumerate(periods):
-        base = np.zeros(n_vars)
+        before = np.zeros(n_vars)
         for prev in range(t):
-            base[th(prev)] = periods[prev].cuttable
+            before[th(prev)] = periods[prev].cuttable
             for e in range(n_env):
-                base[x(e, prev)] = 1.0
+                before[x(e, prev)] = 1.0
+            if use_debt:
+                before[z0 + prev] = 1.0
         for i in range(len(period.days)):
-            row = base.copy()
+            row = before.copy()
             row[th(t)] = period.flex_max[i] - period.flex_min[i]
             rows.append(row)
             rhs.append(carried + period.fixed[i] - period.flex_min[i])
-        row = base.copy()
+        row = before.copy()
         row[th(t)] = period.cuttable
         for e in range(n_env):
             row[x(e, t)] = 1.0
+        if use_debt:
+            row[z0 + t] = 1.0
         rows.append(row)
         rhs.append(carried + period.net - period.fmin)
         carried += period.net - period.fmin
 
-    if min(rhs) < -_EPS:
-        return None  # even with no savings and flexible at its floor, cash runs out
+        if buffer is not None:
+            # Rules D3: accessible cash (unallocated + reserve) after the sweep should not
+            # fall below the buffer. Moving money into the reserve keeps it accessible;
+            # goal contributions, extra repayments, and flexible spending do not.
+            row = np.zeros(n_vars)
+            for prev in range(t + 1):
+                row[th(prev)] = periods[prev].cuttable
+                for e in goal_rows:
+                    row[x(e, prev)] = 1.0
+                if use_debt:
+                    row[z0 + prev] = 1.0
+            row[b0 + t] = -1.0
+            rows.append(row)
+            rhs.append(carried + reserve_now - buffer / SATANG_PER_THB)
+
+    if min(rhs[i] for i in range(len(rhs))
+           if not (buffer is not None and _is_buffer_row(rows[i], b0, n_months))) < -_EPS:
+        return None  # even with no allocations and flexible at its floor, cash runs out
 
     for e, (_, need, _, _, ramp) in enumerate(targets):
-        # Envelope cap.
-        row = np.zeros(n_vars)
+        row = np.zeros(n_vars)  # envelope cap
         for t in range(n_months):
             row[x(e, t)] = 1.0
         rows.append(row)
         rhs.append(need)
-        # Behind-the-ramp shortfall: s[e,t] >= required(t) - contributed so far.
-        for t in range(n_months):
+        for t in range(n_months):  # s[e,t] >= required(t) - contributed so far
             required = need if ramp <= 0 else need * min(1.0, (t + 1) / ramp)
             row = np.zeros(n_vars)
             for prev in range(t + 1):
@@ -213,6 +275,11 @@ def optimize_plan(
             row[s(e, t)] = -1.0
             rows.append(row)
             rhs.append(-required)
+    if use_debt:
+        row = np.zeros(n_vars)
+        row[z0:z0 + n_months] = 1.0
+        rows.append(row)
+        rhs.append(debt_room)
 
     cost = np.zeros(n_vars)
     for e, (_, _, weight, bonus, _) in enumerate(targets):
@@ -222,6 +289,10 @@ def optimize_plan(
             cost[x(e, t)] = -strategy.surplus_bonus_scale * bonus * (n_months - t)
     for t, period in enumerate(periods):
         cost[th(t)] = -strategy.flexible_cut_weight * period.cuttable
+        if use_debt:
+            cost[z0 + t] = -strategy.surplus_bonus_scale * strategy.surplus_debt * (n_months - t)
+        if buffer is not None:
+            cost[b0 + t] = strategy.buffer_weight
 
     bounds = [(0.0, None)] * n_vars
     for t in range(n_months):
@@ -237,22 +308,10 @@ def optimize_plan(
     contributions: list[dict[str, int]] = [{} for _ in range(n_months)]
     cumulative_satang: dict[str, list[int]] = {}
     for e, (envelope, need, _, _, _) in enumerate(targets):
-        need_satang = round(need * SATANG_PER_THB)
-        running, previous, series = 0.0, 0, []
-        for t in range(n_months):
-            running += max(0.0, sol[x(e, t)])
-            if running >= need - _EPS:
-                rounded = need_satang
-            else:
-                rounded = math.floor(running + _EPS) * SATANG_PER_THB
-            rounded = max(previous, min(rounded, need_satang))
-            if rounded > previous:
-                contributions[t][envelope.id] = rounded - previous
-            previous = rounded
-            series.append(rounded)
-        cumulative_satang[envelope.id] = series
+        cumulative_satang[envelope.id] = _round_cumulative(
+            [sol[x(e, t)] for t in range(n_months)], need, contributions, envelope.id)
 
-    flexible_expenses = [e for e in state.expenses if e.category is ExpenseCategory.FLEXIBLE]
+    flexible_expenses = [e for e in base.expenses if e.category is ExpenseCategory.FLEXIBLE]
     months: list[PlanMonth] = []
     for t, ((lo, hi), period) in enumerate(zip(spans, periods, strict=True)):
         keep = min(1.0, max(0.0, sol[th(t)])) if period.cuttable > _EPS else 1.0
@@ -279,6 +338,13 @@ def optimize_plan(
             )
         )
 
+    if use_debt:
+        cash_by_month: list[dict[str, int]] = [{} for _ in range(n_months)]
+        _round_cumulative([sol[z0 + t] for t in range(n_months)], debt_room, cash_by_month,
+                          "debt")
+        months = _split_extra_repayments(base, months, [m.get("debt", 0) for m in cash_by_month],
+                                         order)
+
     def projection_month(series: list[int], need: int) -> str | None:
         if need == 0:
             return months[0].month
@@ -291,7 +357,7 @@ def optimize_plan(
         need_satang = round(need * SATANG_PER_THB)
         if envelope.kind is EnvelopeKind.EMERGENCY:
             reserve_projection = ReserveProjection(
-                target=state.reserve_target,
+                target=base.emergency_target,
                 saved_now=envelope.balance,
                 projected_saved=envelope.balance + series[-1],
                 reached_month=projection_month(series, need_satang),
@@ -315,6 +381,9 @@ def optimize_plan(
                 deadline=goal.deadline,
                 on_track=on_track,
                 shortfall_at_deadline=shortfall,
+                flexible=goal.flexible,
+                contributed_in_horizon=series[-1],
+                average_monthly_contribution=series[-1] // n_months,
             )
         )
 
@@ -327,19 +396,25 @@ def optimize_plan(
         months=tuple(months),
         goals=tuple(goal_projections),
         reserve=reserve_projection,
+        buffer_target=buffer,
+        debt_order=tuple(order) if use_debt else (),
     )
 
-    # Fill in closing balances from the authoritative daily forecast.
+    # Closing balances and buffer checks come from the authoritative daily forecast.
     forecast = forecast_cash_flow(apply_plan(state, plan), plan.horizon_days)
     closing = {day.on: day.unallocated for day in forecast.days}
-    plan = plan.model_copy(
-        update={
-            "months": tuple(
-                m.model_copy(update={"closing_unallocated": closing[m.transfer_date]})
-                for m in plan.months
-            )
-        }
-    )
+    reserve_id = reserve_envelope.id if reserve_envelope else None
+    reserve_series = cumulative_satang.get(reserve_id, [0] * n_months) if reserve_id else None
+    updated = []
+    for t, month in enumerate(plan.months):
+        unallocated = closing[month.transfer_date]
+        shortfall = 0
+        if buffer is not None:
+            reserve = (reserve_envelope.balance + reserve_series[t]) if reserve_envelope else 0
+            shortfall = max(0, buffer - (unallocated + reserve))
+        updated.append(month.model_copy(update={"closing_unallocated": unallocated,
+                                                "buffer_shortfall": shortfall}))
+    plan = plan.model_copy(update={"months": tuple(updated)})
 
     validation = validate_plan(state, plan)
     if not validation.ok:
@@ -347,6 +422,66 @@ def optimize_plan(
             f"{strategy.name} plan failed validation: {'; '.join(validation.violations)}"
         )
     return plan
+
+
+def _is_buffer_row(row: np.ndarray, b0: int, n_months: int) -> bool:
+    return b0 >= 0 and bool(np.any(row[b0:b0 + n_months] != 0))
+
+
+def _round_cumulative(values: list[float], cap: float, out: list[dict[str, int]],
+                      key: str) -> list[int]:
+    """Round a monthly series down on its running total, in whole baht, within `cap`.
+
+    Rounding the running total (not each month) keeps the rounding error below one
+    baht overall and can only leave more cash on hand than the LP solution.
+    """
+    cap_satang = round(cap * SATANG_PER_THB)
+    running, previous, series = 0.0, 0, []
+    for t, value in enumerate(values):
+        running += max(0.0, value)
+        if running >= cap - _EPS:
+            rounded = cap_satang
+        else:
+            rounded = math.floor(running + _EPS) * SATANG_PER_THB
+        rounded = max(previous, min(rounded, cap_satang))
+        if rounded > previous:
+            out[t][key] = rounded - previous
+        previous = rounded
+        series.append(rounded)
+    return series
+
+
+def _split_extra_repayments(
+    state: FinancialState, months: list[PlanMonth], cash: list[int], order: list[str]
+) -> list[PlanMonth]:
+    """Share each month's extra-repayment cash across debts in payoff order (rules D6).
+
+    Each debt gets at most what it will owe on the sweep date, and a prepayment fee
+    comes out of the same cash. Cash that no debt can take stays unallocated.
+    """
+    debts = {d.id: d for d in state.debts}
+    payments: list[ExtraDebtPayment] = []
+    result: list[PlanMonth] = []
+    for month, available in zip(months, cash, strict=True):
+        extra: dict[str, int] = {}
+        for debt_id in order:
+            if available <= 0:
+                break
+            current = state.model_copy(update={"debt_payments": tuple(payments)})
+            owed = balance_after(current, debt_id, month.transfer_date - timedelta(days=1))
+            fee_rate = debts[debt_id].prepayment_fee_rate or 0
+            # Whole baht applied, such that applied + fee fits in the remaining cash.
+            affordable = math.floor(available / (1 + fee_rate) / SATANG_PER_THB)
+            applied = min(owed // SATANG_PER_THB, affordable) * SATANG_PER_THB
+            if applied <= 0:
+                continue
+            extra[debt_id] = applied
+            available -= applied + round(applied * fee_rate)
+            payments.append(ExtraDebtPayment(
+                id=f"split:{debt_id}:{month.month}", debt_id=debt_id, amount=applied,
+                frequency=Frequency.ONE_TIME, on_date=month.transfer_date))
+        result.append(month.model_copy(update={"extra_debt": extra}))
+    return result
 
 
 def _explain_identical(first: Plan, second: Plan, floors: dict[str, int]) -> IdenticalPlans:
@@ -371,21 +506,27 @@ def generate_plans(
     strategies: dict[str, StrategyConfig] | None = None,
     horizon_months: int = 12,
 ) -> PlanningResult:
-    """Plans for every strategy, each validated, plus notes on identical outcomes."""
+    """The user's position first, then a validated plan per strategy when one exists."""
     strategies = strategies or load_strategies()
+    days = horizon_days(state.as_of, horizon_months)
+    position = assess_position(state, days)
+    bare = state.model_copy(update={"transfers": (), "debt_payments": ()})
+
+    status = None
+    if position.has(ShortfallKind.CASH_FLOW_SHORTFALL):
+        status = PlanningStatus.ESSENTIAL_SHORTFALL
+    elif position.has(ShortfallKind.RESERVE_WITHDRAWAL_NEEDED):
+        status = PlanningStatus.REQUIRES_RESERVE_DRAWDOWN
+    elif position.adjusted_deficit > 0:
+        status = PlanningStatus.FLEXIBLE_SPENDING_CONSTRAINT
+    if status is not None:
+        return PlanningResult(status=status, feasibility=check_feasibility(bare, days),
+                              position=position)
+
     plans = [optimize_plan(state, config, horizon_months) for config in strategies.values()]
-
-    spans = _periods(state.as_of, horizon_months)
-    horizon_days = (spans[-1][1] - state.as_of).days + 1
-
-    if any(plan is None for plan in plans):
-        report = check_feasibility(state.model_copy(update={"transfers": ()}), horizon_days)
-        status = (
-            PlanningStatus.ESSENTIAL_SHORTFALL
-            if report.essential_shortfall > 0
-            else PlanningStatus.REQUIRES_RESERVE_DRAWDOWN
-        )
-        return PlanningResult(status=status, feasibility=report)
+    if any(plan is None for plan in plans):  # agrees with adjusted_deficit; kept as a guard
+        return PlanningResult(status=PlanningStatus.FLEXIBLE_SPENDING_CONSTRAINT,
+                              feasibility=check_feasibility(bare, days), position=position)
 
     floors = {e.id: e.floor for e in state.expenses if e.category is ExpenseCategory.FLEXIBLE}
     identical = tuple(
@@ -397,6 +538,7 @@ def generate_plans(
     return PlanningResult(
         status=PlanningStatus.OK,
         plans=tuple(plans),
-        feasibility=check_feasibility(apply_plan(state, plans[0]), horizon_days),
+        feasibility=check_feasibility(apply_plan(state, plans[0]), days),
         identical=identical,
+        position=position,
     )

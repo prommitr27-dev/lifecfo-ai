@@ -84,13 +84,13 @@ def near_deadline(demo_state):
 
 
 def test_at14_infeasible_target_is_detected_with_its_shortfall(near_deadline):
-    # At most 11,000 a month can be freed (30,000 - 18,000 essentials - 1,000 leisure floor),
-    # so no more than 22,000 of the 30,000 can be saved by 31 December.
-    assert max_saving_by(near_deadline, date(2026, 12, 31)) == thb(22000)
+    # At most 10,000 a month can be freed (30,000 - 18,000 essentials - 2,000 leisure
+    # minimum), so no more than 20,000 of the 30,000 can be saved by 31 December.
+    assert max_saving_by(near_deadline, date(2026, 12, 31)) == thb(20000)
     for plan in generate_plans(near_deadline).plans:
         laptop = plan.goals[0]
         assert laptop.on_track is False
-        assert laptop.shortfall_at_deadline >= thb(8000)
+        assert laptop.shortfall_at_deadline >= thb(10000)
 
 
 def test_at14_deadline_is_never_silently_extended(near_deadline):
@@ -102,9 +102,9 @@ def test_at14_explanation_shows_the_risk_and_why(near_deadline):
     data = call(near_deadline, "optimize_financial_plan")
     for plan in data["plans"]:
         laptop = plan["goals"][0]
-        assert laptop["on_track"] is False and laptop["shortfall_at_deadline"] >= 8000
+        assert laptop["on_track"] is False and laptop["shortfall_at_deadline"] >= 10000
         assert "not reachable on time" in laptop["why_late"]
-        assert "at most 22,000.00 THB" in laptop["why_late"]
+        assert "at most 20,000.00 THB" in laptop["why_late"]
         assert "The deadline itself is not changed." in laptop["why_late"]
 
 

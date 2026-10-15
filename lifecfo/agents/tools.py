@@ -213,7 +213,7 @@ def _profile(context: AgentContext, _: NoInput) -> dict[str, Any]:
         "total_cash": baht(state.total_cash),
         "unallocated_cash": baht(state.unallocated.balance),
         "emergency_fund": baht(emergency.balance) if emergency else 0,
-        "emergency_fund_target": baht(state.reserve_target),
+        "emergency_fund_target": baht(state.emergency_target),
         "monthly_income": baht(totals[EventKind.INCOME]),
         "monthly_essential_expenses": baht(totals[EventKind.ESSENTIAL_EXPENSE]),
         "monthly_flexible_budget": baht(totals[EventKind.FLEXIBLE_EXPENSE]),

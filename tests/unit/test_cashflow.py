@@ -9,7 +9,7 @@ from lifecfo.cashflow import (
     forecast_cash_flow,
     monthly_summary,
 )
-from lifecfo.domain import Debt, thb
+from lifecfo.domain import Debt, InterestMethod, thb
 from tests.conftest import with_income
 
 NOV_DEC_JAN = 92  # 2026-11-01 .. 2027-01-31
@@ -73,8 +73,9 @@ def test_timing_gap_is_detected_even_when_monthly_totals_balance(demo_state):
     report = check_feasibility(late_pay, NOV_DEC_JAN)
     assert report.status is FeasibilityStatus.ESSENTIAL_SHORTFALL
     assert report.first_shortfall_on == date(2026, 11, 2)
-    # Before the first payday: 18,000 essentials + 1,000 leisure floor against 6,000 saved.
-    assert report.essential_shortfall == thb(13000)
+    # Before the first payday 18,000 of essentials fall due against 6,000 in the reserve.
+    # Flexible spending is not an obligation, so it is left out of this check.
+    assert report.essential_shortfall == thb(12000)
     assert report.essential_shortfall_on == date(2026, 11, 2)
 
 
@@ -83,19 +84,33 @@ def test_income_below_essentials_is_an_essential_shortfall(demo_state):
     report = check_feasibility(low, NOV_DEC_JAN)
     assert report.status is FeasibilityStatus.ESSENTIAL_SHORTFALL
     assert report.needs_reserves is True
-    # 4,000 short each month for three months, against a 6,000 emergency fund.
-    assert report.essential_shortfall == thb(3 * 4000 - 6000)
-    assert report.essential_shortfall_on == date(2026, 12, 5)
+    # 3,000 short each month after essentials; the 6,000 reserve covers two months.
+    assert report.essential_shortfall == thb(3000)
+    assert report.essential_shortfall_on == date(2027, 1, 5)
 
 
 def test_debt_minimum_stops_when_balance_is_cleared(demo_state):
-    debt = Debt(id="card", name="Credit card", balance=thb(2500), minimum_payment=thb(1000),
-                day_of_month=20)
+    # A known 0% rate under a stated method is contract-based, so payoff can be projected.
+    debt = Debt(id="card", name="Interest-free plan", balance=thb(2500),
+                minimum_payment=thb(1000), day_of_month=20, apr=0.0,
+                interest_method=InterestMethod.MONTHLY_ON_BALANCE)
     state = with_income(demo_state, amount=thb(31000)).model_copy(update={"debts": (debt,)})
     forecast = forecast_cash_flow(state, 150)
     payments = [e.amount for d in forecast.days for e in d.events
                 if e.kind is EventKind.DEBT_MINIMUM]
     assert payments == [thb(1000), thb(1000), thb(500)]
+
+
+def test_debt_with_unknown_rate_keeps_its_minimum_for_the_whole_horizon(demo_state):
+    # Rules D5: an unknown rate is never treated as 0%, so payoff cannot be projected and
+    # the minimum is assumed to continue, which can only overstate outflows.
+    debt = Debt(id="card", name="Card", balance=thb(2500), minimum_payment=thb(1000),
+                day_of_month=20)
+    state = with_income(demo_state, amount=thb(31000)).model_copy(update={"debts": (debt,)})
+    forecast = forecast_cash_flow(state, 150)
+    payments = [e.amount for d in forecast.days for e in d.events
+                if e.kind is EventKind.DEBT_MINIMUM]
+    assert payments == [thb(1000)] * 5
 
 
 def test_monthly_summary_matches_plan(demo_state):

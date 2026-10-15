@@ -22,6 +22,10 @@ class StrategyConfig(Frozen):
     flexible_cut_weight: Weight
     surplus_reserve: Weight
     surplus_goal: Weight
+    # Where money left after every ramp is met may go to extra debt repayment.
+    surplus_debt: Weight = 0
+    # Cost of accessible cash being 1 THB below the user's buffer for a month.
+    buffer_weight: Weight = 1000
     priority_decay: Annotated[float, Field(gt=0, le=1)] = 0.5
     surplus_bonus_scale: Weight = 0.001
 

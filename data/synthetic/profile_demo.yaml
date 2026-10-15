@@ -1,11 +1,15 @@
 # Synthetic demo profile. No real personal data.
 # Mirrors the worked example in the project brief: 30,000 THB income fully
-# allocated, with a 6,000 THB emergency fund already saved.
+# allocated, with a 6,000 THB emergency fund already saved. Preferences follow the
+# demo inputs in Financial Rules v0.2 (D1 flexible budget, D3 buffer, D4 reserve).
 # Money is written in baht using the `_thb` suffix.
 
 as_of: 2026-11-01
 timezone: Asia/Bangkok
-reserve_target_thb: 20000
+# D4: reserve target = 3 months x (essentials + debt minimums), no custom amount.
+reserve_months: 3
+# D3: minimum cash buffer of 1 month of (essentials + debt minimums).
+buffer_months: 1
 
 envelopes:
   - {id: unallocated, kind: UNALLOCATED, balance_thb: 0}
@@ -21,11 +25,11 @@ expenses:
   - {id: transport, name: Transport, category: ESSENTIAL, amount_thb: 2000, day_of_month: 2}
   - {id: rent, name: Rent, category: ESSENTIAL, amount_thb: 9000, day_of_month: 5}
   - {id: utilities, name: Utilities and phone, category: ESSENTIAL, amount_thb: 1000, day_of_month: 15}
-  - {id: leisure, name: Leisure, category: FLEXIBLE, amount_thb: 3000, min_amount_thb: 1000, day_of_month: 2}
+  - {id: leisure, name: Leisure, category: FLEXIBLE, amount_thb: 3000, min_amount_thb: 2000, reduction_allowed: true, day_of_month: 2}
 
 goals:
   - {id: laptop, name: New laptop, target_thb: 30000, priority: 1, deadline: 2027-08-31}
-  - {id: travel, name: Vacation, target_thb: 15000, priority: 2, deadline: 2027-06-30}
+  - {id: travel, name: Vacation, target_thb: 15000, priority: 2, deadline: 2027-06-30, flexible: true}
 
 transfers:
   - {id: t-emergency, envelope_id: emergency, amount_thb: 4000, day_of_month: 2}

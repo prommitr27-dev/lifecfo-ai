@@ -10,10 +10,13 @@ from enum import StrEnum
 
 from lifecfo.cashflow.feasibility import FeasibilityReport
 from lifecfo.cashflow.forecast import forecast_cash_flow
+from lifecfo.cashflow.position import PositionReport
+from lifecfo.debt.schedule import schedule_debts
 from lifecfo.domain.models import (
     EnvelopeKind,
     Expense,
     ExpenseCategory,
+    ExtraDebtPayment,
     FinancialState,
     Frequency,
     Frozen,
@@ -34,8 +37,12 @@ class PlanMonth(Frozen):
     contributions: dict[str, int]  # envelope id -> satang
     flexible: dict[str, int]  # flexible expense id -> satang per occurrence
     flexible_total: int
-    flexible_max: int
+    flexible_max: int  # the user's original flexible budget for the month
     closing_unallocated: int
+    extra_debt: dict[str, int] = {}  # debt id -> satang applied above the minimum
+    # How far accessible cash (unallocated + reserve) is below the buffer after the
+    # month-end sweep; 0 when the buffer is met or not configured.
+    buffer_shortfall: int = 0
 
 
 class GoalProjection(Frozen):
@@ -48,6 +55,11 @@ class GoalProjection(Frozen):
     deadline: date | None
     on_track: bool | None  # None when the goal has no deadline
     shortfall_at_deadline: int
+    flexible: bool = False
+    # Saved into the goal during the plan horizon, and the average per month. For a goal
+    # without a deadline these replace a completion date when none can be projected.
+    contributed_in_horizon: int = 0
+    average_monthly_contribution: int = 0
 
 
 class ReserveProjection(Frozen):
@@ -66,6 +78,8 @@ class Plan(Frozen):
     months: tuple[PlanMonth, ...]
     goals: tuple[GoalProjection, ...]
     reserve: ReserveProjection | None
+    buffer_target: int | None = None
+    debt_order: tuple[str, ...] = ()
 
     @property
     def end(self) -> date:
@@ -76,6 +90,10 @@ class Plan(Frozen):
         return (self.end - self.start).days + 1
 
     @property
+    def months_below_buffer(self) -> tuple[str, ...]:
+        return tuple(m.month for m in self.months if m.buffer_shortfall > 0)
+
+    @property
     def goals_at_risk(self) -> tuple[str, ...]:
         return tuple(g.goal_id for g in self.goals if g.on_track is False)
 
@@ -83,8 +101,8 @@ class Plan(Frozen):
         return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
 
     def same_allocations(self, other: "Plan") -> bool:
-        mine = [(m.contributions, m.flexible) for m in self.months]
-        theirs = [(m.contributions, m.flexible) for m in other.months]
+        mine = [(m.contributions, m.flexible, m.extra_debt) for m in self.months]
+        theirs = [(m.contributions, m.flexible, m.extra_debt) for m in other.months]
         return mine == theirs
 
 
@@ -100,6 +118,9 @@ class PlanningStatus(StrEnum):
     REQUIRES_RESERVE_DRAWDOWN = "REQUIRES_RESERVE_DRAWDOWN"
     # Essentials cannot be paid at all. No plan exists.
     ESSENTIAL_SHORTFALL = "ESSENTIAL_SHORTFALL"
+    # Essentials can be paid, but not together with the user's flexible budget at its
+    # permitted minimum. No plan exists without changing a user preference.
+    FLEXIBLE_SPENDING_CONSTRAINT = "FLEXIBLE_SPENDING_CONSTRAINT"
 
 
 class IdenticalPlans(Frozen):
@@ -128,6 +149,8 @@ class PlanningResult(Frozen):
     plans: tuple[Plan, ...] = ()
     feasibility: FeasibilityReport
     identical: tuple[IdenticalPlans, ...] = ()
+    # The user's own position, computed before any proposal (rules D2: disclosed first).
+    position: PositionReport | None = None
 
 
 def apply_plan(state: FinancialState, plan: Plan) -> FinancialState:
@@ -170,7 +193,21 @@ def apply_plan(state: FinancialState, plan: Plan) -> FinancialState:
                     )
                 )
 
-    return state.model_copy(update={"transfers": transfers, "expenses": tuple(expenses)})
+    debt_payments = tuple(
+        ExtraDebtPayment(
+            id=f"plan:{debt_id}:{month.month}",
+            debt_id=debt_id,
+            amount=amount,
+            frequency=Frequency.ONE_TIME,
+            on_date=month.transfer_date,
+        )
+        for month in plan.months
+        for debt_id, amount in month.extra_debt.items()
+        if amount > 0
+    )
+    return state.model_copy(update={
+        "transfers": transfers, "expenses": tuple(expenses), "debt_payments": debt_payments,
+    })
 
 
 def validate_plan(state: FinancialState, plan: Plan) -> PlanValidation:
@@ -186,7 +223,7 @@ def validate_plan(state: FinancialState, plan: Plan) -> PlanValidation:
     goals = {g.id: g for g in state.goals}
     for envelope in state.envelopes:
         if envelope.kind is EnvelopeKind.EMERGENCY:
-            capacity[envelope.id] = max(0, state.reserve_target - envelope.balance)
+            capacity[envelope.id] = max(0, state.emergency_target - envelope.balance)
         elif envelope.kind is EnvelopeKind.GOAL:
             capacity[envelope.id] = max(0, goals[envelope.goal_id].target - envelope.balance)
 
@@ -219,6 +256,27 @@ def validate_plan(state: FinancialState, plan: Plan) -> PlanValidation:
                 f"Envelope '{envelope_id}' would be overfunded by "
                 f"{format_thb(total - capacity[envelope_id])}."
             )
+
+    debts = {d.id: d for d in state.debts}
+    planned_extra: dict[str, int] = {}
+    for month in plan.months:
+        for debt_id, amount in month.extra_debt.items():
+            debt = debts.get(debt_id)
+            if debt is None:
+                violations.append(f"{month.month}: unknown debt '{debt_id}'.")
+            elif not debt.extra_payment_allowed:
+                violations.append(f"{month.month}: extra repayment of '{debt_id}' is not "
+                                  "permitted.")
+            elif amount < 0:
+                violations.append(f"{month.month}: negative extra repayment of '{debt_id}'.")
+            planned_extra[debt_id] = planned_extra.get(debt_id, 0) + amount
+
+    if not violations and planned_extra:
+        applied = schedule_debts(apply_plan(state, plan), plan.start, plan.end)
+        for debt_id, amount in planned_extra.items():
+            paid = sum(p.extra_paid for p in applied[debt_id].periods)
+            if paid != amount:
+                violations.append(f"Extra repayment of '{debt_id}' exceeds what is owed.")
 
     if not violations:
         forecast = forecast_cash_flow(apply_plan(state, plan), plan.horizon_days)

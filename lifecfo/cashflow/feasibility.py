@@ -3,10 +3,13 @@
 Three outcomes:
 - FEASIBLE: unallocated cash never goes negative under the plan as written.
 - PLAN_INFEASIBLE: the plan runs short, but essentials and debt minimums can
-  still be paid by cutting flexible spending, pausing savings transfers, and,
-  if `needs_reserves` is set, drawing on existing envelopes. Replanning can fix it.
-- ESSENTIAL_SHORTFALL: even with every cut and every envelope emptied, essentials
-  cannot be paid on time. No plan exists; the shortfall is reported as is.
+  still be paid from accessible cash (unallocated cash and the emergency fund)
+  if flexible spending and savings stop. `needs_reserves` says whether the
+  emergency fund would have to be used. Replanning can fix it.
+- ESSENTIAL_SHORTFALL: even with no flexible spending, no savings, and the
+  whole emergency fund used, essentials and debt minimums cannot be paid on
+  time. Money already saved for goals is not counted: using it is the user's
+  decision. Nothing is reduced or invented; the shortfall is reported as is.
 """
 
 from datetime import date
@@ -41,12 +44,13 @@ def check_feasibility(
 ) -> FeasibilityReport:
     planned = planned or forecast_cash_flow(state, horizon_days)
     essentials = forecast_cash_flow(
-        state, horizon_days, flexible_at_floor=True, include_transfers=False
+        state, horizon_days, include_transfers=False, exclude_flexible=True
     )
+    reserve = state.emergency.balance if state.emergency else 0
 
-    essential_shortfall = max(0, -essentials.min_total_cash)
+    essential_shortfall = max(0, -(essentials.min_unallocated + reserve))
     essential_shortfall_on = next(
-        (day.on for day in essentials.days if day.total_cash < 0), None
+        (day.on for day in essentials.days if day.unallocated + reserve < 0), None
     )
 
     if planned.max_shortfall == 0:

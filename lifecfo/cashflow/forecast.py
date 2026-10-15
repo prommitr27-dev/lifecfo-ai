@@ -7,15 +7,17 @@ reported as a shortfall, and deciding how to fund it belongs to the planner.
 Modelling assumptions (documented in docs/financial_model/FINANCIAL_MODEL.md):
 - Balances in the state are opening balances for `as_of`.
 - Within a day, income lands first, then essentials, debt minimums, flexible
-  spending, and finally savings transfers.
-- Debt minimum payments stop when the balance reaches zero; interest is not accrued.
+  spending, savings transfers, and finally extra debt repayments.
+- Debt payments follow lifecfo.debt.schedule_debts: interest is accrued where the
+  rate is known, and a debt with an unknown rate keeps its minimum payment for the
+  whole horizon (rules D5).
 """
 
 from datetime import date, timedelta
 from enum import StrEnum
 
+from lifecfo.debt.schedule import schedule_debts
 from lifecfo.domain.models import ExpenseCategory, FinancialState, Frozen
-from lifecfo.domain.schedule import monthly_occurrences
 
 
 class EventKind(StrEnum):
@@ -24,6 +26,7 @@ class EventKind(StrEnum):
     DEBT_MINIMUM = "DEBT_MINIMUM"
     FLEXIBLE_EXPENSE = "FLEXIBLE_EXPENSE"
     SAVINGS_TRANSFER = "SAVINGS_TRANSFER"
+    EXTRA_DEBT_PAYMENT = "EXTRA_DEBT_PAYMENT"
 
 
 _ORDER = {kind: index for index, kind in enumerate(EventKind)}
@@ -92,6 +95,7 @@ class MonthSummary(Frozen):
     debt_minimum: int
     flexible: int
     transfers: int
+    extra_debt: int = 0
     closing_unallocated: int
     closing_total_cash: int
 
@@ -103,8 +107,14 @@ def build_events(
     *,
     flexible_at_floor: bool = False,
     include_transfers: bool = True,
+    exclude_flexible: bool = False,
 ) -> list[CashEvent]:
-    """All scheduled cash events within [start, end], in processing order."""
+    """All scheduled cash events within [start, end], in processing order.
+
+    `include_transfers` covers every allocation: savings transfers and extra debt
+    repayments. `exclude_flexible` leaves out flexible spending entirely, which is
+    the view used to test whether essentials and debt minimums alone can be paid.
+    """
     events: list[CashEvent] = []
 
     for income in state.incomes:
@@ -117,7 +127,7 @@ def build_events(
     for expense in state.expenses:
         essential = expense.category is ExpenseCategory.ESSENTIAL
         amount = expense.floor if flexible_at_floor else expense.amount
-        if amount == 0:
+        if amount == 0 or (exclude_flexible and not essential):
             continue
         kind = EventKind.ESSENTIAL_EXPENSE if essential else EventKind.FLEXIBLE_EXPENSE
         events += [
@@ -125,17 +135,17 @@ def build_events(
             for d in expense.occurrences(start, end)
         ]
 
-    for debt in state.debts:
-        remaining = debt.balance
-        for d in monthly_occurrences(debt.day_of_month, start, end):
-            payment = min(debt.minimum_payment, remaining)
-            if payment == 0:
-                break
-            remaining -= payment
-            events.append(
-                CashEvent(on=d, kind=EventKind.DEBT_MINIMUM, ref_id=debt.id, name=debt.name,
-                          amount=payment)
-            )
+    for schedule in schedule_debts(state, start, end, include_extra=include_transfers).values():
+        for period in schedule.periods:
+            if period.minimum_paid:
+                events.append(CashEvent(
+                    on=period.on, kind=EventKind.DEBT_MINIMUM, ref_id=schedule.debt_id,
+                    name=schedule.name, amount=period.minimum_paid))
+            if period.extra_paid:
+                events.append(CashEvent(
+                    on=period.on, kind=EventKind.EXTRA_DEBT_PAYMENT, ref_id=schedule.debt_id,
+                    name=f"Extra repayment: {schedule.name}",
+                    amount=period.extra_paid + period.fee))
 
     if include_transfers:
         for transfer in state.transfers:
@@ -156,6 +166,7 @@ def forecast_cash_flow(
     *,
     flexible_at_floor: bool = False,
     include_transfers: bool = True,
+    exclude_flexible: bool = False,
 ) -> Forecast:
     """Simulate `horizon_days` days starting at `state.as_of` (inclusive).
 
@@ -170,7 +181,7 @@ def forecast_cash_flow(
     by_day: dict[date, list[CashEvent]] = {}
     for event in build_events(
         state, start, end, flexible_at_floor=flexible_at_floor,
-        include_transfers=include_transfers,
+        include_transfers=include_transfers, exclude_flexible=exclude_flexible,
     ):
         by_day.setdefault(event.on, []).append(event)
 
@@ -221,6 +232,7 @@ def monthly_summary(forecast: Forecast) -> list[MonthSummary]:
             debt_minimum=bucket[EventKind.DEBT_MINIMUM],
             flexible=bucket[EventKind.FLEXIBLE_EXPENSE],
             transfers=bucket[EventKind.SAVINGS_TRANSFER],
+            extra_debt=bucket[EventKind.EXTRA_DEBT_PAYMENT],
             closing_unallocated=closing[key].unallocated,
             closing_total_cash=closing[key].total_cash,
         )

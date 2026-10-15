@@ -69,10 +69,18 @@ def test_essential_expense_cannot_be_reduced():
                 min_amount=50, day_of_month=1)
 
 
-def test_flexible_floor_defaults_to_zero():
-    expense = Expense(id="fun", name="Fun", category=ExpenseCategory.FLEXIBLE, amount=100,
-                      day_of_month=1)
-    assert expense.floor == 0
+def test_flexible_budget_is_a_constraint_unless_reduction_is_allowed():
+    fixed = Expense(id="fun", name="Fun", category=ExpenseCategory.FLEXIBLE, amount=100,
+                    min_amount=60, day_of_month=1)
+    assert fixed.floor == 100  # rules D1: no permission, no proposed cut
+    allowed = fixed.model_copy(update={"reduction_allowed": True})
+    assert allowed.floor == 60
+    with pytest.raises(ValidationError, match="min_amount"):
+        Expense(id="x", name="X", category=ExpenseCategory.FLEXIBLE, amount=100,
+                reduction_allowed=True, day_of_month=1)
+    with pytest.raises(ValidationError, match="cannot be reduced"):
+        Expense(id="rent", name="Rent", category=ExpenseCategory.ESSENTIAL, amount=100,
+                reduction_allowed=True, day_of_month=1)
 
 
 def test_state_requires_exactly_one_unallocated_envelope():

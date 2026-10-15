@@ -36,7 +36,6 @@ def test_three_strategies_are_valid_and_genuinely_different(demo_state):
     assert result.identical == ()
     for plan in result.plans:
         assert validate_plan(demo_state, plan).ok
-        assert plan.goals_at_risk == ()
 
 
 def test_strategies_trade_reserve_speed_against_goal_speed(demo_state):
@@ -47,16 +46,19 @@ def test_strategies_trade_reserve_speed_against_goal_speed(demo_state):
     travel = {name: plan.goals[1].completion_month for name, plan in plans.items()}
     assert travel["GOAL_FIRST"] < travel["SAFETY_FIRST"]
 
-    # Safety First cuts leisure to its floor while the reserve is being built.
-    assert plans["SAFETY_FIRST"].months[0].flexible == {"leisure": thb(1000)}
-    assert plans["BALANCED"].months[0].flexible == {"leisure": thb(3000)}
+    # Leisure may be proposed between the user's 2,000 minimum and 3,000 budget only.
+    for plan in plans.values():
+        for month in plan.months:
+            assert thb(2000) <= month.flexible["leisure"] <= thb(3000)
+    assert plans["SAFETY_FIRST"].months[0].flexible == {"leisure": thb(2000)}
+    assert plans["GOAL_FIRST"].months[1].flexible == {"leisure": thb(3000)}
 
 
 def test_plan_never_overfunds_and_conserves_cash(demo_state):
     for plan in generate_plans(demo_state).plans:
         forecast = forecast_cash_flow(apply_plan(demo_state, plan), plan.horizon_days)
         assert forecast.min_unallocated >= 0
-        assert forecast.closing_envelopes["emergency"] <= demo_state.reserve_target
+        assert forecast.closing_envelopes["emergency"] <= demo_state.emergency_target
         assert forecast.closing_envelopes["env-laptop"] <= thb(30000)
         assert forecast.closing_envelopes["env-travel"] <= thb(15000)
         for month in plan.months:
@@ -70,12 +72,11 @@ def test_income_cut_yields_valid_plans_and_flags_goals_at_risk(demo_state):
     assert len(plans) == 3
     for plan in plans.values():
         assert validate_plan(cut, plan).ok
-        # 59,000 of targets cannot all be met on time from 5,000 a month of free cash.
+        # 4,000 a month of free cash cannot fill a 48,000 reserve gap and 45,000 of goals.
         assert "travel" in plan.goals_at_risk
-    # The higher-priority laptop goal is protected by every strategy.
-    assert all(plan.goals[0].on_track for plan in plans.values())
-    assert plans["GOAL_FIRST"].goals[1].shortfall_at_deadline < (
-        plans["SAFETY_FIRST"].goals[1].shortfall_at_deadline
+    # Goal First puts the time-bound goals ahead of the reserve.
+    assert plans["GOAL_FIRST"].goals[0].shortfall_at_deadline < (
+        plans["SAFETY_FIRST"].goals[0].shortfall_at_deadline
     )
 
 

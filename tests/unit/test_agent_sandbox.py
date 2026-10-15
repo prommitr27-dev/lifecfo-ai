@@ -130,9 +130,10 @@ def test_profile_reflects_the_activated_plan(sandbox):
     sandbox.decide(proposed.trace[0].data["plan_id"], True)
     agent().reply(ctx(sandbox), "Execute the approved plan")
     profile = default_registry().call(ctx(sandbox), "get_financial_profile", {}, Tier.READ).data
-    # Safety First cuts leisure to its 1,000 floor and sweeps 11,000 in the first month.
-    assert profile["monthly_flexible_budget"] == 1000
-    assert profile["monthly_planned_savings"] == 11000
+    # Safety First proposes leisure at the user's 2,000 minimum and sweeps 10,000 into
+    # the reserve in the first month (goals wait while the buffer is short).
+    assert profile["monthly_flexible_budget"] == 2000
+    assert profile["monthly_planned_savings"] == 10000
 
 
 def test_profile_covers_a_full_month_after_time_moves(sandbox):
