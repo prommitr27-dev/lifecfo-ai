@@ -55,7 +55,7 @@ the Approve and Reject buttons in the app, and it refuses any actor other than
 | S11 | Provider failure is safe | Any provider error ends in the offline engine; no automatic provider switch, never a paid service | `test_every_provider_failure_falls_back_to_offline_mode` |
 | S12 | Secrets stay local | `.env` and the sandbox database are git-ignored; error messages never contain keys | `test_error_text_never_contains_the_api_key` |
 | S13 | No plan is invented | When essentials cannot be paid the planner returns no plan and reports the shortfall | `test_no_plan_is_invented_when_essentials_cannot_be_paid` |
-| S15 | Only the user can record real events | `confirm_expense` and `withdraw_reserve` refuse any actor other than `USER`, are audited, and change the state hash so earlier approvals lapse | `test_only_the_user_can_confirm_an_expense_or_withdraw`, `test_a_confirmed_expense_voids_earlier_proposals` |
+| S15 | Only the user can record real events | `confirm_expense`, `confirm_income_change`, and `withdraw_reserve` refuse any actor other than `USER`, are audited, and change the state hash so earlier approvals lapse | `test_only_the_user_can_confirm_an_expense_or_withdraw`, `test_a_confirmed_expense_voids_earlier_proposals` |
 | S16 | Rewards cannot be granted by the agent or farmed | No tool writes rewards; every reward event id is unique per item and period | `test_review_pays_once_a_day_and_completes_the_weekly_mission`, `test_goal_milestones_pay_once_from_the_stored_state` |
 | S14 | Sandbox only | No code path opens a bank connection or handles credentials; "execution" updates the sandbox ledger | By construction |
 

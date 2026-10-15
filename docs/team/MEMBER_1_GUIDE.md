@@ -11,6 +11,7 @@ uv run ruff check .                       # lint ต้องผ่านก่�
 uv run streamlit run app/main.py          # เปิดแอป
 uv run python scripts/demo_offline.py --write    # demo offline + หลักฐานส่งประกวด
 uv run python scripts/manual_scenarios.py        # รายงาน manual scenario 6 ชุด
+uv run python scripts/demo_15_steps.py           # demo 15 ขั้นตามบรีฟ พร้อมผลตรวจทุกขั้น
 ```
 
 - ค่าเริ่มต้นไม่ใช้ LLM และไม่ต่อเน็ต ถ้าจะใช้ Groq ตั้งในไฟล์ `.env` (ดู `docs/AI_PROVIDERS.md`)
@@ -83,7 +84,7 @@ YAML profile → FinancialState (frozen)
 
 | งาน | สถานะ | ที่ที่ต้องแก้ |
 |---|---|---|
-| M7 สคริปต์ demo 15 ขั้นตามบรีฟ | ถัดไป | ต่อจาก `scripts/demo_offline.py` |
+| M7 สคริปต์ demo 15 ขั้นตามบรีฟ | เสร็จแล้ว ผ่านครบ 15 ขั้น | `scripts/demo_15_steps.py` รันแล้วได้หลักฐานใน `docs/competition/evidence/` |
 | หน้าอนุมัติการเปลี่ยนค่าที่ผู้ใช้ตั้ง (เลื่อน deadline, buffer, flexible) | ยังไม่มี ตอนนี้ระบบแค่เสนอ ผู้ใช้แก้โปรไฟล์เอง | method ใหม่ใน `SandboxService` คู่กับประเภท proposal ใหม่ใน `database/store.py` และปุ่มในหน้า Sandbox |
 | วิธีคิดดอกเบี้ยตามสัญญาแบบอื่น | มี 2 วิธี | `InterestMethod` ใน `domain/models.py` และ `_accrue` ใน `debt/schedule.py` |
 | คำถาม 6 ข้อถึงทีมเศรษฐศาสตร์ | รอคำตอบ | ส่วนใหญ่แก้ที่ `config/strategy_weights.yaml` หรือ `optimizer.py` ดูข้อ 4 ของ `docs/financial_model/RULES_V0.2_STATUS.md` |

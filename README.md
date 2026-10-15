@@ -30,7 +30,8 @@ investment advice.
 | M3 | User approval, sandbox execution, idempotency, hash-chained audit log, Sandbox view | Done |
 | Rules v0.2 | Financial Rules D1 to D9 (C1 to C10): position and deficits, buffer, reserve formula, debt interest and extra repayment, goal flexibility, acceptance tests AT1 to AT16 | Done except recording a real expense in the sandbox (see [status](docs/financial_model/RULES_V0.2_STATUS.md)) |
 | M6 | Rewards: XP, levels, badges, daily and weekly streaks with grace, pause, and shock protection, adaptive recovery missions, opt-out, Rewards view; confirmed expenses and reserve withdrawals in the sandbox | Done |
-| M7 | End-to-end demo script for the 15 demo steps | Next |
+| M7 | The brief's 15-step demo end to end with a check per step (`scripts/demo_15_steps.py`, all 15 pass) | Done |
+| M9, M10 | Evaluation and submission package | Next |
 | M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
@@ -47,10 +48,12 @@ The app, the tests, and the demo run with **no API key, no paid service, and no
 network**. An LLM is optional; see [docs/AI_PROVIDERS.md](docs/AI_PROVIDERS.md)
 for the free options (local Ollama, Groq free plan, Gemini free tier).
 
-Offline demo of the agent on synthetic data:
+Offline demo of the agent on synthetic data, and the 15-step competition demo
+with a pass or fail check on every step:
 
 ```bash
 uv run python scripts/demo_offline.py
+uv run python scripts/demo_15_steps.py
 ```
 
 ## Repository layout

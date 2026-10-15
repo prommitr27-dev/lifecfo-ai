@@ -356,3 +356,36 @@ class SandboxService:
                         f"{format_thb(reserve.balance - amount)}; the gap to its target is "
                         f"{format_thb(max(0, target - (reserve.balance - amount)))}.",
                         {"reserve_after": reserve.balance - amount})
+
+    def confirm_income_change(self, percent: float, actor: str = USER) -> OpResult:
+        """Record a real change to the user's recurring income, from the sandbox date on.
+
+        One-off income is left as it is. The change voids earlier proposals and
+        approvals, so the plan has to be made again under the new income.
+        """
+        if actor != USER:
+            return self._refuse(actor, "INCOME_CHANGE_REFUSED", "ONLY_USER_CAN_CONFIRM",
+                                "Only the user can confirm a change to their income.")
+        if not -100 < percent <= 100 or percent == 0:
+            return self._refuse(actor, "INCOME_CHANGE_REFUSED", "INVALID_PERCENT",
+                                "The change must be between -100% and +100% and not zero.")
+        state = self.state
+        incomes = tuple(
+            i.model_copy(update={"amount": round(i.amount * (100 + percent) / 100)})
+            if i.frequency is Frequency.MONTHLY else i
+            for i in state.incomes)
+        new_state = state.model_copy(update={"incomes": incomes})
+        with self.store.transaction():
+            self.store.save_state(new_state)
+            self._audit(actor, "INCOME_CHANGE_CONFIRMED", percent=percent,
+                        monthly_before=sum(i.amount for i in state.incomes
+                                           if i.frequency is Frequency.MONTHLY),
+                        monthly_after=sum(i.amount for i in incomes
+                                          if i.frequency is Frequency.MONTHLY),
+                        state_hash_before=state_fingerprint(state),
+                        state_hash_after=state_fingerprint(new_state))
+        after = sum(i.amount for i in incomes if i.frequency is Frequency.MONTHLY)
+        return OpResult(True, "INCOME_CHANGE_CONFIRMED",
+                        f"Monthly income is now {format_thb(after)}. Earlier proposals no "
+                        "longer match your finances; generate a new plan.",
+                        {"monthly_income": after})
