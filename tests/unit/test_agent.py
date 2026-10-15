@@ -113,6 +113,7 @@ def test_tool_results_match_the_engines(context):
      ("Can I afford my current plan?", "get_cash_flow_forecast"),
      ("Compare the three plans", "optimize_financial_plan"),
      ("What if my income drops 20%?", "simulate_income_change"),
+     ("What if I get a raise of 10 percent?", "simulate_income_change"),
      ("ถ้ารายได้ลด 20% จะเป็นอย่างไร", "simulate_income_change"),
      ("ช่วยเปรียบเทียบแผนให้หน่อย", "optimize_financial_plan")],
 )

@@ -52,7 +52,7 @@ class AgentReply:
 
 
 _PERCENT = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*(?:%|percent|เปอร์เซ็นต์)")
-_INCOME = ("income", "salary", "pay", "wage", "รายได้", "เงินเดือน")
+_INCOME = ("income", "salary", "pay", "wage", "raise", "รายได้", "เงินเดือน")
 _DOWN = ("drop", "cut", "lose", "loss", "reduc", "fall", "decreas", "less", "ลด", "หาย")
 _UP = ("rise", "raise", "increas", "more", "grow", "เพิ่ม", "ขึ้น")
 _PROPOSE = ("propose", "request approval", "submit", "เสนอแผน", "ขออนุมัติ")

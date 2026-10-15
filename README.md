@@ -31,7 +31,8 @@ investment advice.
 | Rules v0.2 | Financial Rules D1 to D9 (C1 to C10): position and deficits, buffer, reserve formula, debt interest and extra repayment, goal flexibility, acceptance tests AT1 to AT16 | Done except recording a real expense in the sandbox (see [status](docs/financial_model/RULES_V0.2_STATUS.md)) |
 | M6 | Rewards: XP, levels, badges, daily and weekly streaks with grace, pause, and shock protection, adaptive recovery missions, opt-out, Rewards view; confirmed expenses and reserve withdrawals in the sandbox | Done |
 | M7 | The brief's 15-step demo end to end with a check per step (`scripts/demo_15_steps.py`, all 15 pass) | Done |
-| M9, M10 | Evaluation and submission package | Next |
+| M9 | Evaluation: 40 seeded scenarios against three baselines, plus 20 routing and 10 injection prompts for the agent ([results](docs/testing/EVALUATION_RESULTS.md), regenerate with `uv run python scripts/run_evaluation.py`) | Done |
+| M10 | Submission package | Next |
 | M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start

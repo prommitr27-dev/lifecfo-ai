@@ -20,7 +20,7 @@ evidence are core deliverables, not an add-on.
 | M6 | Rewards engine | No duplicate XP; protected streak follows the rules; opt-out records nothing | 16 Oct | Done (15 Oct) |
 | M7 | End-to-end deterministic demo | The 15-step demo runs from one script without an LLM; operation log exported | 16 Oct | Done (15 Oct) |
 | M8 | AI CFO agent | Provider layer, read and compute tools, offline agent, and chat view are done (14 Oct). Remaining: propose and execute tools after M3, live test on a free provider, wider injection test set | 17 Oct | Partly done |
-| M9 | Evaluation | 30 to 50 seeded scenarios; baseline comparison documented | 18 Oct | |
+| M9 | Evaluation | 30 to 50 seeded scenarios; baseline comparison documented (`scripts/run_evaluation.py`, [results](testing/EVALUATION_RESULTS.md)) | 18 Oct | Done (15 Oct) |
 | M10 | Submission package | Technical docs, deck, demo video, security self-assessment, execution evidence | 19 Oct | |
 | | Buffer and submit | Final check against the submission checklist | 20 Oct | |
 

@@ -1,0 +1,41 @@
+seed,shock,description
+2026000,NONE,no shock
+2026001,INCOME_CUT,income -30%
+2026002,EXPENSE,"emergency expense 10,000 THB on 2026-11-08"
+2026003,SALARY_DELAY,salary paid 10 days later
+2026004,COST_RISE,essential costs +10%
+2026005,COMBINED,"income -10% and emergency expense 13,000 THB on 2026-11-14"
+2026006,NONE,no shock
+2026007,INCOME_CUT,income -10%
+2026008,EXPENSE,"emergency expense 17,000 THB on 2026-11-03"
+2026009,SALARY_DELAY,salary paid 10 days later
+2026010,COST_RISE,essential costs +10%
+2026011,COMBINED,"income -10% and emergency expense 7,000 THB on 2026-11-03"
+2026012,NONE,no shock
+2026013,INCOME_CUT,income -20%
+2026014,EXPENSE,"emergency expense 19,000 THB on 2026-11-04"
+2026015,SALARY_DELAY,salary paid 10 days later
+2026016,COST_RISE,essential costs +10%
+2026017,COMBINED,"income -30% and emergency expense 6,000 THB on 2026-11-13"
+2026018,NONE,no shock
+2026019,INCOME_CUT,income -20%
+2026020,EXPENSE,"emergency expense 14,000 THB on 2026-11-08"
+2026021,SALARY_DELAY,salary paid 10 days later
+2026022,COST_RISE,essential costs +10%
+2026023,COMBINED,"income -20% and emergency expense 6,000 THB on 2026-11-08"
+2026024,NONE,no shock
+2026025,INCOME_CUT,income -30%
+2026026,EXPENSE,"emergency expense 13,000 THB on 2026-11-07"
+2026027,SALARY_DELAY,salary paid 10 days later
+2026028,COST_RISE,essential costs +10%
+2026029,COMBINED,"income -10% and emergency expense 15,000 THB on 2026-11-03"
+2026030,NONE,no shock
+2026031,INCOME_CUT,income -30%
+2026032,EXPENSE,"emergency expense 19,000 THB on 2026-11-21"
+2026033,SALARY_DELAY,salary paid 10 days later
+2026034,COST_RISE,essential costs +10%
+2026035,COMBINED,"income -10% and emergency expense 9,000 THB on 2026-11-20"
+2026036,NONE,no shock
+2026037,INCOME_CUT,income -20%
+2026038,EXPENSE,"emergency expense 8,000 THB on 2026-11-07"
+2026039,SALARY_DELAY,salary paid 10 days later
