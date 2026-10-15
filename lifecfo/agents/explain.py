@@ -63,51 +63,212 @@ def forecast(data: dict[str, Any]) -> str:
     )
 
 
+SHORTFALL_LABELS = {
+    "CASH_FLOW_SHORTFALL": "Cash-flow shortfall",
+    "RESERVE_WITHDRAWAL_NEEDED": "Reserve withdrawal needed",
+    "FLEXIBLE_SPENDING_CONSTRAINT": "Flexible-spending constraint",
+    "BUFFER_SHORTFALL": "Cash buffer shortfall",
+    "SAVINGS_GOAL_SHORTFALL": "Savings-goal shortfall",
+    "DEADLINE_RISK": "Deadline risk",
+    "FLEXIBLE_GOAL_DELAY": "Flexible-goal delay",
+}
+
+
+def position(data: dict[str, Any]) -> str:
+    """The user's own position, shown before any proposal (rules D2)."""
+    budget, cash, month = data["monthly_budget"], data["current_cash"], data["coming_month"]
+    reserve, buffer = data["emergency_reserve"], data["cash_buffer"]
+    surplus = budget["surplus_under_original_budget"]
+    lines = [
+        "**Your position under your own budget** (before any proposal)",
+        f"- Each month: income {thb(budget['income'])}, essentials {thb(budget['essentials'])}, "
+        f"debt minimums {thb(budget['debt_minimums'])}, flexible budget "
+        f"{thb(budget['flexible_budget'])}; "
+        + (f"{thb(surplus)} left for savings." if surplus >= 0
+           else f"a deficit of {thb(-surplus)} a month."),
+        "- Original budget over the horizon: "
+        + ("no cash gap." if not data["original_budget_deficit"] else
+           f"short by up to {thb(data['original_budget_deficit'])} from "
+           f"{data['original_budget_deficit_from']}."),
+        f"- Cash now: {thb(cash['unallocated'])} unallocated, "
+        f"{thb(cash['eligible_emergency_reserve'])} emergency reserve, "
+        f"{thb(cash['committed_to_goals'])} already committed to goals.",
+        f"- Until {month['until']}: {thb(month['income'])} income against "
+        f"{thb(month['obligations_under_original_budget'])} of bills and flexible spending, "
+        f"leaving {thb(month['uncommitted_funds'])} uncommitted.",
+        f"- Emergency reserve target {thb(reserve['target'])} ({reserve['basis']}); "
+        f"{thb(reserve['eligible_balance'])} saved, gap {thb(reserve['gap'])}.",
+    ]
+    if buffer["configured"]:
+        lines.append(
+            f"- Cash buffer {thb(buffer['target'])}: accessible cash is "
+            f"{thb(buffer['accessible_now'])}"
+            + (f", {thb(buffer['shortfall_now'])} below it." if buffer["shortfall_now"]
+               else ", so it is met."))
+    else:
+        lines.append(
+            f"- No cash buffer is set. The starting recommendation is one month of essentials "
+            f"and debt minimums, {thb(buffer['recommended_if_not_configured'])}; please confirm "
+            "or change it.")
+    for shortfall in data["shortfalls"]:
+        amount = f" of {thb(shortfall['amount'])}" if shortfall["amount"] is not None else ""
+        lines.append(f"- **{SHORTFALL_LABELS[shortfall['kind']]}**{amount}: "
+                     f"{shortfall['detail']}")
+    return "\n".join(lines)
+
+
 def plans(data: dict[str, Any]) -> str:
+    head = position(data["original_position"]) + "\n\n" if data.get("original_position") else ""
     if data["status"] == "ESSENTIAL_SHORTFALL":
-        return (
-            "No plan can be offered: essential bills cannot be paid, and the shortfall "
-            f"reaches {thb(data['essential_shortfall'])} from {data['essential_shortfall_on']}."
-        )
+        return head + (
+            "No plan can be offered: essential expenses and minimum debt payments cannot be "
+            f"paid, and the shortfall reaches {thb(data['essential_shortfall'])} from "
+            f"{data['essential_shortfall_on']}. They are not reduced to make a plan fit.")
     if data["status"] == "REQUIRES_RESERVE_DRAWDOWN":
-        return (
-            "No regular plan can be offered: essentials can only be paid by using existing "
-            "savings, which is a recovery decision that needs your explicit approval."
-        )
+        return head + (
+            "No regular plan can be offered: essentials can only be paid by withdrawing from "
+            "the emergency reserve, which is a recovery decision that needs your approval.")
+    if data["status"] == "FLEXIBLE_SPENDING_CONSTRAINT":
+        return head + (
+            "No plan can be offered without changing one of your preferences: even with "
+            "flexible spending at the minimum you allowed, the budget runs short. Options are "
+            "a lower flexible minimum, more income, or lower costs, each your decision.")
     blocks = []
     for plan in data["plans"]:
-        goal_lines = "; ".join(
-            f"{g['name']} "
-            + (f"done {g['completion_month']}" if g["completion_month"]
-               else "not finished within the horizon")
-            + ("" if g["on_track"] is not False
-               else f" (misses its deadline by {thb(g['shortfall_at_deadline'])})")
-            for g in plan["goals"]
-        )
-        reasons = "".join(
-            f"\n  - Why {g['name']} is late: {g['why_late']}"
-            for g in plan["goals"] if g.get("why_late")
-        )
+        goal_lines = []
+        for g in plan["goals"]:
+            done = (f"projected to complete {g['completion_month']}" if g["completion_month"]
+                    else f"not complete within the horizon ({thb(g['saved_in_horizon'])} saved, "
+                         f"{thb(g['remaining_after_horizon'])} still to go)")
+            risk = ""
+            if g["on_track"] is False:
+                kind = "flexible goal, a later date may be proposed" if g["flexible"] else (
+                    "deadline risk")
+                risk = f"; misses {g['deadline']} by {thb(g['shortfall_at_deadline'])} ({kind})"
+            goal_lines.append(f"{g['name']} {done}{risk}")
+        flex = plan["flexible_spending"]
+        flex_line = (
+            f"flexible spending {thb(flex['proposed_first_month'])}"
+            + (f" (proposed cut of {thb(flex['reduction_first_month'])}, "
+               f"{flex['reduction_percent_first_month']}% below your "
+               f"{thb(flex['original_budget_first_month'])} budget)"
+               if flex["reduction_first_month"] else " (your full budget)"))
         contributions = ", ".join(
             f"{name} {thb(amount)}" for name, amount in plan["first_month_contributions"].items()
         ) or "nothing"
-        blocks.append(
-            f"**{plan['strategy']}**\n"
+        extra = plan["first_month_extra_debt_repayment"]
+        block = [
+            f"**{plan['strategy']}** (proposal, not approved)",
             f"- Emergency fund target reached: "
-            f"{plan['emergency_fund_target_reached'] or 'not within the horizon'}\n"
-            f"- Goals: {goal_lines or 'none'}\n"
-            f"- {plan['first_month']}: saves {contributions}; flexible spending "
-            f"{thb(plan['first_month_flexible_spending'])}"
-            + reasons
-        )
-    text = (
+            f"{plan['emergency_fund_target_reached'] or 'not within the horizon'}",
+            f"- Goals: {'; '.join(goal_lines) or 'none'}",
+            f"- {plan['first_month']}: saves {contributions}; {flex_line}"
+            + ("; extra debt repayment "
+               + ", ".join(f"{k} {thb(v)}" for k, v in extra.items()) if extra else ""),
+        ]
+        buffer = plan["cash_buffer"]
+        if buffer["months_below_buffer"]:
+            block.append(
+                f"- Below your {thb(buffer['target'])} cash buffer in "
+                f"{len(buffer['months_below_buffer'])} month(s) "
+                f"({', '.join(buffer['months_below_buffer'][:3])}), by up to "
+                f"{thb(buffer['largest_shortfall'])}; goal contributions wait in those months.")
+        for g in plan["goals"]:
+            if g.get("why_late"):
+                block.append(f"  - Why {g['name']} is late: {g['why_late']}")
+            elif g.get("zero_allocation_note"):
+                block.append(f"  - {g['zero_allocation_note']}")
+            if g.get("no_deadline_note"):
+                block.append(f"  - {g['name']}: about {thb(g['average_per_month'])} a month. "
+                             f"{g['no_deadline_note']}")
+        blocks.append("\n".join(block))
+    text = head + (
         f"I generated {len(data['plans'])} plans over {data['horizon_months']} months. Each "
         "one passed the deterministic validator and the daily cash check.\n\n"
-        + "\n\n".join(blocks)
-    )
+        + "\n\n".join(blocks))
     if data["tradeoffs"]:
         text += "\n\n**Trade-offs**\n" + "\n".join(f"- {fact}" for fact in data["tradeoffs"])
+    for option in data.get("alternatives", []):
+        text += (
+            f"\n\n**Option to consider: a later date for {option['goal']}** "
+            f"(needs your approval)\n- Without its {option['current_deadline']} deadline, "
+            f"{option['goal']} is projected to complete "
+            f"{option['projected_completion_without_the_deadline'] or 'after the horizon'}.\n"
+            + "\n".join(f"- {effect}" for effect in option["effects_on_other_goals"])
+            + f"\n- {option['note']}")
     return text + "\n\nThese are proposals. Nothing changes until you approve a plan."
+
+
+def debts(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return "No debts are recorded, so there is nothing to compare."
+    lines = [
+        f"**Debt repayment comparison**, {data['period']} (proposal, not approved)",
+        f"- Required minimum payments: {thb(data['required_minimums_per_month'])} a month.",
+        f"- Extra repayment compared: {thb(data['extra_available_per_month'])} a month "
+        f"({data['extra_source']}).",
+    ]
+    if not data["extra_available_per_month"]:
+        lines.append("- No money is genuinely left for extra repayment, so none is "
+                     "allocated; the orders below differ only once extra money exists.")
+    for comparison in data["comparisons"]:
+        lines.append(f"\n**{comparison['strategy']}**: order "
+                     f"{' then '.join(comparison['order']) or 'none eligible'}")
+        for debt in comparison["debts"]:
+            interest = ("unavailable (rate unknown)" if debt["interest_in_period"] is None
+                        else f"{thb(debt['interest_in_period'])} "
+                             f"({debt['interest_basis'].lower().replace('_', ' ')})")
+            lines.append(
+                f"- {debt['debt']}: interest {interest}; minimum {thb(debt['minimum_paid'])}, "
+                f"extra {thb(debt['extra_paid'])}"
+                + (f", fees {thb(debt['fees'])}" if debt["fees"] else "")
+                + (f"; paid off {debt['paid_off_on']}" if debt["paid_off_on"] else "")
+                + (f"; owed at the end {thb(debt['balance_at_end'])}"
+                   if debt["balance_at_end"] is not None else "; balance not projectable"))
+    if data["facts"]:
+        lines.append("\n**What differs**\n" + "\n".join(f"- {f}" for f in data["facts"]))
+    lines.append("\n**Assumptions and limitations**\n"
+                 + "\n".join(f"- {n}" for n in data["assumptions_and_limitations"]))
+    lines.append(f"\n{data['note']}")
+    return "\n".join(lines)
+
+
+def unexpected_expense(data: dict[str, Any]) -> str:
+    if "error" in data:
+        return "I could not size that expense because no monthly income is recorded."
+    reserve, access, buffer = (data["emergency_reserve"], data["accessible_cash"],
+                               data["cash_buffer"])
+    lines = [
+        f"Hypothetical scenario (nothing was saved): an unexpected expense of "
+        f"{thb(data['expense_amount'])} due on {data['expense_due_on']}.",
+        "",
+        f"**Liquidity, {data['period_checked']}**",
+        f"- Unallocated cash cannot cover {thb(data['not_covered_by_unallocated_cash'])} "
+        "of it on your original budget."
+        if data["not_covered_by_unallocated_cash"] else
+        "- Unallocated cash covers it on your original budget.",
+        f"- Accessible cash (unallocated plus reserve) on {access['on']}: "
+        f"{thb(access['with_expense'])} instead of {thb(access['without_expense'])}.",
+    ]
+    if data["reserve_withdrawal_needed"]:
+        lines.append(
+            f"- That needs a withdrawal of {thb(data['reserve_withdrawal_needed'])} from the "
+            f"emergency reserve: {thb(reserve['balance_before'])} becomes "
+            f"{thb(reserve['balance_after_withdrawal'])}, and the gap to the "
+            f"{thb(reserve['target'])} target grows from {thb(reserve['gap_before'])} to "
+            f"{thb(reserve['gap_after'])}.")
+    if data["still_uncovered_after_reserve"]:
+        lines.append(f"- Even after the reserve, {thb(data['still_uncovered_after_reserve'])} "
+                     "remains uncovered: a cash-flow shortfall.")
+    if buffer["target"] is not None:
+        lines.append(f"- Against your {thb(buffer['target'])} cash buffer: "
+                     + (f"{thb(buffer['shortfall_after_expense'])} short after the expense."
+                        if buffer["shortfall_after_expense"] else "still met."))
+    lines += ["", f"**Effect on the current plan**\n{forecast(data['current_plan'])}", "",
+              comparison(data["compared_with_current"]), "",
+              "**Recovery options (proposals)**",
+              plans(data["recovery_options"]), "", f"Note: {data['limitation']}"]
+    return "\n".join(lines)
 
 
 def comparison(data: dict[str, Any]) -> str:
@@ -125,28 +286,6 @@ def income_change(data: dict[str, Any]) -> str:
         f"{comparison(data['compared_with_current'])}\n\n"
         f"**Replanning**\n{plans(data['replanning'])}\n\n"
         f"Assumption: {data['assumption']}"
-    )
-
-
-def unexpected_expense(data: dict[str, Any]) -> str:
-    if "error" in data:
-        return "I could not size that expense because no monthly income is recorded."
-    uncovered = data["expense_not_covered_by_emergency_fund"]
-    fund_line = (
-        f"Your emergency fund holds {thb(data['emergency_fund_now'])}, which would cover it "
-        "in full if you chose to use it."
-        if uncovered == 0 else
-        f"Your emergency fund holds {thb(data['emergency_fund_now'])}, so "
-        f"{thb(uncovered)} of the expense is not covered by it."
-    )
-    return (
-        f"Hypothetical scenario (nothing was saved): an unexpected expense of "
-        f"{thb(data['expense_amount'])} due on {data['expense_due_on']}.\n\n{fund_line}\n\n"
-        f"**Effect on the current plan**\n{forecast(data['current_plan'])}\n\n"
-        f"{comparison(data['compared_with_current'])}\n\n"
-        f"**Replanning without touching savings**\n"
-        f"{plans(data['replanning_without_touching_savings'])}\n\n"
-        f"Note: {data['limitation']}"
     )
 
 
@@ -212,6 +351,8 @@ RENDERERS = {
     "request_plan_approval": approval_request,
     "execute_approved_sandbox_plan": execution,
     "get_audit_history": audit,
+    "get_financial_position": position,
+    "compare_debt_strategies": debts,
     "get_spending_insights": insights,
 }
 
@@ -224,6 +365,8 @@ HELP = (
     "- **Plans**: \"Compare the three plans\"\n"
     "- **What-if**: \"What if my income drops 20%?\" or \"What if I get a 10,000 THB "
     "repair bill?\"\n"
+    "- **Position**: \"Where do I stand?\" (available cash, deficit, reserve, buffer)\n"
+    "- **Debts**: \"Compare Avalanche and Snowball\"\n"
     "- **Propose**: \"Propose the Balanced plan\" (you then approve it in the Sandbox view)\n"
     "- **Execute**: \"Execute the approved plan\"\n"
     "- **Audit**: \"Show the audit log\""

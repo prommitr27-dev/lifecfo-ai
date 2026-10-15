@@ -8,10 +8,10 @@
       "action": "SANDBOX_RESET",
       "payload": {
         "as_of": "2026-11-01",
-        "state_hash": "6aff0e1cf930e773f33c6575733100a10547b81491c39810c965c458132488b1"
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954"
       },
       "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-      "hash": "cad9a1db4c8c0ade541b17d676f0ac0a5693625766cc85cec705cf33b3c99fb3"
+      "hash": "e99f07e9caa826e1092fff353127e3fc4efef4e0d2694007999afefe9325f21c"
     },
     {
       "seq": 2,
@@ -19,13 +19,13 @@
       "actor": "AGENT",
       "action": "PLAN_PROPOSED",
       "payload": {
-        "plan_hash": "c8cb1a9ba49104cdc2967199e9e6ea68c399a43fc60fe92290fec7c925b909a8",
-        "plan_id": "plan-c8cb1a9ba4",
-        "state_hash": "6aff0e1cf930e773f33c6575733100a10547b81491c39810c965c458132488b1",
+        "plan_hash": "0d1de2471c2d904485bd189082a0e2158214743c97c7946f5c436ea18d4afa6e",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954",
         "strategy": "BALANCED"
       },
-      "prev_hash": "cad9a1db4c8c0ade541b17d676f0ac0a5693625766cc85cec705cf33b3c99fb3",
-      "hash": "917f3e83d0ede7e124378cbecb9da66c2bb4e5dbdc44786c4a0d08eceb63f219"
+      "prev_hash": "e99f07e9caa826e1092fff353127e3fc4efef4e0d2694007999afefe9325f21c",
+      "hash": "9989fbab893a90475851590e3c94450158b7ef81d25289cf550ca2123a4bda76"
     },
     {
       "seq": 3,
@@ -37,8 +37,8 @@
         "code": "NO_APPROVAL",
         "reason": "There is no approved plan to execute. The user must approve a plan in the app first."
       },
-      "prev_hash": "917f3e83d0ede7e124378cbecb9da66c2bb4e5dbdc44786c4a0d08eceb63f219",
-      "hash": "561b8eece6d908b1bbe21330c4a21405fa411aab0af3c29ea5a66861250a00a7"
+      "prev_hash": "9989fbab893a90475851590e3c94450158b7ef81d25289cf550ca2123a4bda76",
+      "hash": "2809f25c2bb53bc2736f533930378943dabfd7758ab5039d3af993940dbac611"
     },
     {
       "seq": 4,
@@ -46,13 +46,13 @@
       "actor": "USER",
       "action": "PLAN_APPROVED",
       "payload": {
-        "approval_id": "apr-80969c465f",
-        "plan_hash": "c8cb1a9ba49104cdc2967199e9e6ea68c399a43fc60fe92290fec7c925b909a8",
-        "plan_id": "plan-c8cb1a9ba4",
-        "state_hash": "6aff0e1cf930e773f33c6575733100a10547b81491c39810c965c458132488b1"
+        "approval_id": "apr-8ceb618ad1",
+        "plan_hash": "0d1de2471c2d904485bd189082a0e2158214743c97c7946f5c436ea18d4afa6e",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954"
       },
-      "prev_hash": "561b8eece6d908b1bbe21330c4a21405fa411aab0af3c29ea5a66861250a00a7",
-      "hash": "db4bedf93febf9fdb2ea6b1f7d604924e656b6c9c706ec4abbf713652919dd85"
+      "prev_hash": "2809f25c2bb53bc2736f533930378943dabfd7758ab5039d3af993940dbac611",
+      "hash": "aa72fbd23ff1d51f587985b19b5a5d833c312b427a28a152e1549abcde66a3fe"
     },
     {
       "seq": 5,
@@ -60,14 +60,14 @@
       "actor": "AGENT",
       "action": "PLAN_EXECUTED",
       "payload": {
-        "approval_id": "apr-80969c465f",
-        "plan_id": "plan-c8cb1a9ba4",
-        "state_hash_after": "f8c19e2a2a5a2dd125d5bbd2d7fbde67d39a97bd0ed59c4f0b91ca27d2afac9e",
-        "state_hash_before": "6aff0e1cf930e773f33c6575733100a10547b81491c39810c965c458132488b1",
+        "approval_id": "apr-8ceb618ad1",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash_after": "b54416ab85e30c0060859a837b56cc01ff0f070283aa24690f33db32296e18d3",
+        "state_hash_before": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954",
         "strategy": "BALANCED"
       },
-      "prev_hash": "db4bedf93febf9fdb2ea6b1f7d604924e656b6c9c706ec4abbf713652919dd85",
-      "hash": "6ef976d227401473be9031f0070bcd10fcf0c1a188b85adfb3297100c4de291e"
+      "prev_hash": "aa72fbd23ff1d51f587985b19b5a5d833c312b427a28a152e1549abcde66a3fe",
+      "hash": "83540b4f8ae7afdffd22c2498da9112bfd65fbe7644724a1bc1cb998ce40c432"
     },
     {
       "seq": 6,
@@ -79,8 +79,8 @@
         "code": "NO_APPROVAL",
         "reason": "There is no approved plan to execute. The user must approve a plan in the app first."
       },
-      "prev_hash": "6ef976d227401473be9031f0070bcd10fcf0c1a188b85adfb3297100c4de291e",
-      "hash": "090766dd1d50beb992a0036bdc1a9cca3b49c85b2b56b4c31f7361ad4e76dd70"
+      "prev_hash": "83540b4f8ae7afdffd22c2498da9112bfd65fbe7644724a1bc1cb998ce40c432",
+      "hash": "2d0d6e417b485206668c7251f71eed916e9412618fbd67489ad9b1a8498a4610"
     },
     {
       "seq": 7,
@@ -90,26 +90,26 @@
       "payload": {
         "days": 30,
         "from_date": "2026-11-01",
-        "state_hash_after": "32f9695126a188cc854fc4147bf76cfa288718880f4a4b1b5bb860e24b4f8382",
-        "state_hash_before": "f8c19e2a2a5a2dd125d5bbd2d7fbde67d39a97bd0ed59c4f0b91ca27d2afac9e",
+        "state_hash_after": "28df2a1094e337c63d616bc396b78a1c01db8f29fb1bc3e1eccf9461d236b4f9",
+        "state_hash_before": "b54416ab85e30c0060859a837b56cc01ff0f070283aa24690f33db32296e18d3",
         "to_date": "2026-12-01",
-        "transactions": 9
+        "transactions": 7
       },
-      "prev_hash": "090766dd1d50beb992a0036bdc1a9cca3b49c85b2b56b4c31f7361ad4e76dd70",
-      "hash": "33fad7cba0a75bba774fe84f389ec85fa43b20fe10fc39322a079a6020269481"
+      "prev_hash": "2d0d6e417b485206668c7251f71eed916e9412618fbd67489ad9b1a8498a4610",
+      "hash": "ca42a6c9191943a946fb4d5240f4acf2282fb9c86e85113002aa8e15d7de105f"
     }
   ],
   "transactions": [
     {
       "id": 1,
-      "idempotency_key": "execute:apr-80969c465f",
+      "idempotency_key": "execute:apr-8ceb618ad1",
       "kind": "PLAN_ACTIVATION",
-      "ref": "plan-c8cb1a9ba4",
+      "ref": "plan-0d1de2471c",
       "from_envelope": null,
       "to_envelope": null,
       "amount": 0,
       "effective_on": "2026-11-01",
-      "plan_id": "plan-c8cb1a9ba4",
+      "plan_id": "plan-0d1de2471c",
       "created_at": "2026-11-01T02:00:00+00:00"
     },
     {
@@ -155,7 +155,7 @@
       "ref": "leisure@2026-11-02",
       "from_envelope": "unallocated",
       "to_envelope": null,
-      "amount": 300000,
+      "amount": 200000,
       "effective_on": "2026-11-02",
       "plan_id": null,
       "created_at": "2026-11-01T02:00:00+00:00"
@@ -191,31 +191,7 @@
       "ref": "plan:emergency:2026-11",
       "from_envelope": "unallocated",
       "to_envelope": "emergency",
-      "amount": 233300,
-      "effective_on": "2026-11-30",
-      "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
-    },
-    {
-      "id": 9,
-      "idempotency_key": "SAVINGS_TRANSFER:plan:env-laptop:2026-11:2026-11-30",
-      "kind": "SAVINGS_TRANSFER",
-      "ref": "plan:env-laptop:2026-11",
-      "from_envelope": "unallocated",
-      "to_envelope": "env-laptop",
-      "amount": 479100,
-      "effective_on": "2026-11-30",
-      "plan_id": null,
-      "created_at": "2026-11-01T02:00:00+00:00"
-    },
-    {
-      "id": 10,
-      "idempotency_key": "SAVINGS_TRANSFER:plan:env-travel:2026-11:2026-11-30",
-      "kind": "SAVINGS_TRANSFER",
-      "ref": "plan:env-travel:2026-11",
-      "from_envelope": "unallocated",
-      "to_envelope": "env-travel",
-      "amount": 187500,
+      "amount": 1000000,
       "effective_on": "2026-11-30",
       "plan_id": null,
       "created_at": "2026-11-01T02:00:00+00:00"

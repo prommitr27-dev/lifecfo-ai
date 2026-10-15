@@ -1,0 +1,31 @@
+# Synthetic profile for the debt rules (Financial Rules v0.2, D5 and D6).
+# No real personal data. Three debts with different levels of rate information:
+#   - Personal loan: rate and contract method known       -> contract-based interest
+#   - Credit card: rate known, method not given           -> estimated interest
+#   - Store installment: rate unknown                      -> interest unavailable
+# The reserve is already funded and the buffer is met, so money left after
+# essentials, debt minimums, and flexible spending can go to extra repayment.
+
+as_of: 2026-11-01
+timezone: Asia/Bangkok
+reserve_months: 3
+buffer_months: 1
+debt_strategy: AVALANCHE
+
+envelopes:
+  - {id: unallocated, kind: UNALLOCATED, balance_thb: 0}
+  - {id: emergency, kind: EMERGENCY, balance_thb: 60000}
+
+incomes:
+  - {id: salary, name: Salary, amount_thb: 35000, day_of_month: 1}
+
+expenses:
+  - {id: food, name: Food, category: ESSENTIAL, amount_thb: 6000, day_of_month: 2}
+  - {id: transport, name: Transport, category: ESSENTIAL, amount_thb: 2000, day_of_month: 2}
+  - {id: rent, name: Rent, category: ESSENTIAL, amount_thb: 9000, day_of_month: 5}
+  - {id: leisure, name: Leisure, category: FLEXIBLE, amount_thb: 2500, min_amount_thb: 2000, reduction_allowed: true, day_of_month: 2}
+
+debts:
+  - {id: loan, name: Personal loan, balance_thb: 12000, minimum_payment_thb: 1500, day_of_month: 10, apr: 0.15, interest_method: DAILY_SIMPLE_ACT365}
+  - {id: card, name: Credit card, balance_thb: 20000, minimum_payment_thb: 1000, day_of_month: 20, apr: 0.25}
+  - {id: store, name: Store installment, balance_thb: 4000, minimum_payment_thb: 500, day_of_month: 25}

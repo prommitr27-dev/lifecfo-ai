@@ -29,8 +29,16 @@ from pydantic import (
     model_validator,
 )
 
-from lifecfo.cashflow import check_feasibility, forecast_cash_flow, monthly_summary
+from lifecfo.agents.views import (
+    baht,
+    debt_comparison,
+    expense_scenario,
+    position_data,
+)
+from lifecfo.agents.views import feasibility_data as _feasibility_data
+from lifecfo.agents.views import planning_data as _planning_data
 from lifecfo.cashflow.forecast import EventKind, build_events
+from lifecfo.cashflow.position import assess_position
 from lifecfo.domain.models import (
     EnvelopeKind,
     Expense,
@@ -41,9 +49,8 @@ from lifecfo.domain.models import (
 from lifecfo.domain.money import SATANG_PER_THB
 from lifecfo.domain.schedule import clamp_day
 from lifecfo.llm.base import ToolSpec
-from lifecfo.optimization import Plan, PlanningResult, PlanningStatus, generate_plans
+from lifecfo.optimization import PlanningStatus, generate_plans
 from lifecfo.optimization.optimizer import horizon_days
-from lifecfo.optimization.reasons import deferral_reasons
 from lifecfo.services.sandbox import AGENT, SandboxService
 
 
@@ -99,6 +106,17 @@ class ProposeInput(NoInput):
         if normalised not in Strategy.__members__:
             raise ValueError("must be SAFETY_FIRST, BALANCED, or GOAL_FIRST")
         return normalised
+
+
+class PositionInput(NoInput):
+    horizon_months: Annotated[int, Field(ge=1, le=24)] = 12
+
+
+class DebtCompareInput(NoInput):
+    months: Annotated[int, Field(ge=1, le=60)] = 6
+    extra_per_month_thb: Annotated[float | None, Field(ge=0, le=10_000_000, description=(
+        "Extra repayment cash per month to compare. Omit to use the money the Balanced plan "
+        "leaves for extra repayment."))] = None
 
 
 class AuditInput(NoInput):
@@ -185,11 +203,6 @@ def _one_month_ahead(start: date) -> date:
     return clamp_day(year, month, start.day) - timedelta(days=1)
 
 
-def baht(satang: int) -> int | float:
-    whole, rest = divmod(satang, SATANG_PER_THB)
-    return whole if rest == 0 else round(satang / SATANG_PER_THB, 2)
-
-
 def _monthly(items) -> int:
     return sum(i.amount for i in items if i.frequency is Frequency.MONTHLY)
 
@@ -242,32 +255,6 @@ def _goals(context: AgentContext, _: NoInput) -> dict[str, Any]:
     }
 
 
-def _feasibility_data(state: FinancialState, horizon_days: int) -> dict[str, Any]:
-    forecast = forecast_cash_flow(state, horizon_days)
-    report = check_feasibility(state, horizon_days, planned=forecast)
-    return {
-        "status": report.status.value,
-        "horizon_days": horizon_days,
-        "lowest_unallocated_cash": baht(report.min_unallocated),
-        "lowest_unallocated_cash_on": report.min_unallocated_on.isoformat(),
-        "first_shortfall_on": (
-            report.first_shortfall_on.isoformat() if report.first_shortfall_on else None
-        ),
-        "largest_shortfall": baht(report.max_shortfall),
-        "needs_existing_savings": report.needs_reserves,
-        "essential_shortfall": baht(report.essential_shortfall),
-        "monthly": [
-            {
-                "month": m.month, "income": baht(m.income), "essential": baht(m.essential),
-                "debt_minimum": baht(m.debt_minimum), "flexible": baht(m.flexible),
-                "savings_transfers": baht(m.transfers),
-                "closing_unallocated": baht(m.closing_unallocated),
-            }
-            for m in monthly_summary(forecast)
-        ],
-    }
-
-
 def _forecast(context: AgentContext, args: ForecastInput) -> dict[str, Any]:
     return _feasibility_data(context.state, args.horizon_days)
 
@@ -303,90 +290,6 @@ def _insights(context: AgentContext, _: NoInput) -> dict[str, Any]:
         ],
         "free_cash_per_month_after_essentials": baht(income - essential - debt),
     }
-
-
-def _plan_data(plan: Plan, state: FinancialState) -> dict[str, Any]:
-    first = plan.months[0]
-    reasons = deferral_reasons(state, plan)
-    return {
-        "strategy": plan.label,
-        "emergency_fund_target_reached": plan.reserve.reached_month if plan.reserve else None,
-        "goals": [
-            {
-                "name": g.name,
-                "completion_month": g.completion_month,
-                "deadline": g.deadline.isoformat() if g.deadline else None,
-                "on_track": g.on_track,
-                "shortfall_at_deadline": baht(g.shortfall_at_deadline),
-                "why_late": reasons.get(g.goal_id),
-            }
-            for g in plan.goals
-        ],
-        "first_month": first.month,
-        "first_month_contributions": {k: baht(v) for k, v in first.contributions.items()},
-        "first_month_flexible_spending": baht(first.flexible_total),
-        "flexible_spending_over_horizon": baht(sum(m.flexible_total for m in plan.months)),
-        "validated": True,
-    }
-
-
-def tradeoff_facts(result: PlanningResult) -> list[str]:
-    """Plain statements comparing the plans, derived only from plan data."""
-    if result.status is not PlanningStatus.OK:
-        return []
-    facts: list[str] = [note.describe() for note in result.identical]
-    plans = result.plans
-
-    with_reserve = [p for p in plans if p.reserve and p.reserve.reached_month]
-    if len({p.reserve.reached_month for p in with_reserve}) > 1:
-        fastest = min(with_reserve, key=lambda p: p.reserve.reached_month)
-        slowest = max(with_reserve, key=lambda p: p.reserve.reached_month)
-        facts.append(
-            f"{fastest.label} fills the emergency fund by {fastest.reserve.reached_month}; "
-            f"{slowest.label} takes until {slowest.reserve.reached_month}."
-        )
-    for plan in plans:
-        if plan.reserve and plan.reserve.reached_month is None:
-            facts.append(f"{plan.label} does not reach the emergency fund target in the horizon.")
-
-    kept = {p.label: sum(m.flexible_total for m in p.months) for p in plans}
-    if len(set(kept.values())) > 1:
-        low, high = min(kept, key=kept.get), max(kept, key=kept.get)
-        facts.append(
-            f"{low} keeps {baht(kept[low]):,} THB of flexible spending over the horizon; "
-            f"{high} keeps {baht(kept[high]):,} THB."
-        )
-
-    for index, goal in enumerate(plans[0].goals):
-        months = {p.label: p.goals[index].completion_month for p in plans}
-        reached = {k: v for k, v in months.items() if v}
-        if len(set(months.values())) > 1 and reached:
-            first = min(reached, key=reached.get)
-            others = ", ".join(
-                f"{label} {month or 'not within the horizon'}"
-                for label, month in months.items() if label != first
-            )
-            facts.append(f"{goal.name}: {first} completes it in {reached[first]} ({others}).")
-        late = [p.label for p in plans if p.goals[index].on_track is False]
-        if late:
-            facts.append(f"{goal.name} misses its deadline under: {', '.join(late)}.")
-    return facts
-
-
-def _planning_data(state: FinancialState, horizon_months: int) -> dict[str, Any]:
-    result = generate_plans(state, horizon_months=horizon_months)
-    data: dict[str, Any] = {"status": result.status.value, "horizon_months": horizon_months}
-    if result.status is PlanningStatus.OK:
-        data["plans"] = [_plan_data(plan, state) for plan in result.plans]
-        data["tradeoffs"] = tradeoff_facts(result)
-    else:
-        data["plans"] = []
-        data["essential_shortfall"] = baht(result.feasibility.essential_shortfall)
-        data["essential_shortfall_on"] = (
-            result.feasibility.essential_shortfall_on.isoformat()
-            if result.feasibility.essential_shortfall_on else None
-        )
-    return data
 
 
 def _optimize(context: AgentContext, args: PlanInput) -> dict[str, Any]:
@@ -486,31 +389,27 @@ def _unexpected_expense(context: AgentContext, args: UnexpectedExpenseInput) -> 
     if amount <= 0:
         return {"error": "NO_INCOME", "detail": "No monthly income to take a percentage of."}
     due = state.as_of + timedelta(days=args.days_from_now)
-    shock = Expense(
-        id="hypothetical-expense", name="Unexpected expense",
-        category=ExpenseCategory.ESSENTIAL, amount=amount,
-        frequency=Frequency.ONE_TIME, on_date=due,
-    )
+    data = expense_scenario(state, amount, due, args.horizon_months)
+    shock = Expense(id="hypothetical-expense", name="Unexpected expense",
+                    category=ExpenseCategory.ESSENTIAL, amount=amount,
+                    frequency=Frequency.ONE_TIME, on_date=due)
     changed = state.model_copy(update={"expenses": (*state.expenses, shock)})
-    emergency = next((e for e in state.envelopes if e.kind is EnvelopeKind.EMERGENCY), None)
-    fund = emergency.balance if emergency else 0
-    return {
-        "hypothetical": True,
-        "note": "Simulated on a copy. The stored financial state was not changed.",
-        "expense_amount": baht(amount),
-        "expense_due_on": due.isoformat(),
-        "emergency_fund_now": baht(fund),
-        "expense_not_covered_by_emergency_fund": baht(max(0, amount - fund)),
-        "current_plan": _feasibility_data(
-            changed, horizon_days(changed.as_of, args.horizon_months)),
-        "replanning_without_touching_savings": _planning_data(changed, args.horizon_months),
-        "compared_with_current": _compare(state, changed, args.horizon_months),
-        "limitation": (
-            "Replanning here pays the expense from income and unallocated cash only. Using "
-            "the emergency fund is a recovery decision that needs the user's approval and "
-            "is not simulated yet."
-        ),
-    }
+    data["current_plan"] = _feasibility_data(
+        changed, horizon_days(changed.as_of, args.horizon_months))
+    data["compared_with_current"] = _compare(state, changed, args.horizon_months)
+    return data
+
+
+def _position(context: AgentContext, args: PositionInput) -> dict[str, Any]:
+    state = context.state
+    return position_data(assess_position(state, horizon_days(state.as_of,
+                                                             args.horizon_months)))
+
+
+def _debts(context: AgentContext, args: DebtCompareInput) -> dict[str, Any]:
+    extra = (None if args.extra_per_month_thb is None
+             else round(args.extra_per_month_thb * SATANG_PER_THB))
+    return debt_comparison(context.state, args.months, extra)
 
 
 _NO_SANDBOX = {"error": "SANDBOX_UNAVAILABLE",
@@ -590,6 +489,14 @@ def default_registry() -> ToolRegistry:
              "unexpected expense (repair, medical bill) must be paid. Size is an amount in "
              "THB or a percentage of monthly income. Never changes stored data.",
              UnexpectedExpenseInput, _unexpected_expense),
+        Tool("get_financial_position", Tier.COMPUTE,
+             "The user's own position before any plan: monthly budget, original deficit, "
+             "current cash pools, uncommitted funds, emergency reserve target and gap, cash "
+             "buffer, and every shortfall by kind.", PositionInput, _position),
+        Tool("compare_debt_strategies", Tier.COMPUTE,
+             "Debt interest and payoff under Avalanche, Snowball, and the user's own order "
+             "over the same period, with how each interest figure was obtained and its "
+             "limitations. A proposal only.", DebtCompareInput, _debts),
         Tool("get_audit_history", Tier.READ,
              "Recent sandbox audit log entries and whether the hash chain is intact.",
              AuditInput, _audit),

@@ -77,6 +77,10 @@ MAX_HISTORY_CHARS = 1200
 History = Sequence[tuple[str, str]]  # (role, text) pairs, oldest first; role is user/assistant
 
 _INTENTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("debt", "avalanche", "snowball", "loan", "interest", "หนี้", "ดอกเบี้ย"),
+     "compare_debt_strategies"),
+    (("position", "available cash", "deficit", "buffer", "reserve", "where do i stand",
+      "สถานะ", "ขาดดุล", "เงินสำรอง"), "get_financial_position"),
     (("cash", "forecast", "afford", "feasib", "shortfall", "enough", "เงินสด", "พอ"),
      "get_cash_flow_forecast"),
     (("plan", "strateg", "allocat", "optimi", "compare", "trade", "recommend", "แผน",

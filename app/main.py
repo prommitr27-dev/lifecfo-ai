@@ -13,7 +13,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from lifecfo.agents import AgentContext, AgentReply, Tier, build_agent
+from lifecfo.agents import AgentContext, AgentReply, Tier, build_agent, explain
+from lifecfo.agents.views import position_data
 from lifecfo.cashflow import (
     FeasibilityStatus,
     check_feasibility,
@@ -276,17 +277,28 @@ else:
     horizon_months = st.select_slider("Horizon (months)", options=[6, 12, 18, 24], value=12)
     result = plan_for(state.model_dump_json(), horizon_months)
 
+    # Rules D2: the user's own position comes first, before any proposal.
+    with st.container(border=True):
+        st.markdown(explain.position(position_data(result.position)))
+
     if result.status is PlanningStatus.ESSENTIAL_SHORTFALL:
         st.error(
-            "ESSENTIAL_SHORTFALL: no plan can pay the essential obligations. From "
-            f"{result.feasibility.essential_shortfall_on} the shortfall reaches "
-            f"{format_thb(result.feasibility.essential_shortfall)} even with flexible spending "
-            "at its minimum and every envelope used. No plan is offered."
+            "ESSENTIAL_SHORTFALL: no plan can pay essential expenses and minimum debt "
+            f"payments. From {result.feasibility.essential_shortfall_on} the shortfall reaches "
+            f"{format_thb(result.feasibility.essential_shortfall)} even with no flexible "
+            "spending, no savings, and the whole emergency reserve used. Nothing is reduced "
+            "to make a plan fit, so no plan is offered."
         )
     elif result.status is PlanningStatus.REQUIRES_RESERVE_DRAWDOWN:
         st.warning(
-            "REQUIRES_RESERVE_DRAWDOWN: essentials can only be paid by using existing "
-            "savings. That is a recovery decision, so no regular plan is offered."
+            "REQUIRES_RESERVE_DRAWDOWN: essentials can only be paid by withdrawing from the "
+            "emergency reserve. That is a recovery decision, so no regular plan is offered."
+        )
+    elif result.status is PlanningStatus.FLEXIBLE_SPENDING_CONSTRAINT:
+        st.warning(
+            "FLEXIBLE_SPENDING_CONSTRAINT: even at the flexible minimum you allowed, the "
+            "budget runs short. A plan needs a change to one of your preferences, which is "
+            "your decision."
         )
     else:
         st.success(
@@ -309,7 +321,10 @@ else:
                            else f" (late, {format_thb(goal.shortfall_at_deadline)} short)")
                         for goal in plan.goals
                     },
-                    "Flexible kept (THB)": baht(sum(m.flexible_total for m in plan.months)),
+                    "Flexible, first month (THB)": (
+                        f"{baht(plan.months[0].flexible_total):,.0f} of "
+                        f"{baht(plan.months[0].flexible_max):,.0f}"),
+                    "Months below buffer": len(plan.months_below_buffer),
                     "Goals at risk": len(plan.goals_at_risk),
                 }
                 for plan in result.plans
@@ -326,7 +341,11 @@ else:
                 {
                     "Month": month.month,
                     **{envelope: baht(amount) for envelope, amount in month.contributions.items()},
+                    **{f"extra: {debt}": baht(amount)
+                       for debt, amount in month.extra_debt.items()},
                     "Flexible spending": baht(month.flexible_total),
+                    "Flexible budget": baht(month.flexible_max),
+                    "Below buffer by": baht(month.buffer_shortfall),
                     "Unallocated after sweep": baht(month.closing_unallocated),
                 }
                 for month in plan.months

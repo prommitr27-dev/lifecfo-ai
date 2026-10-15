@@ -27,7 +27,7 @@ against the daily forecast before it is returned.
 
 import calendar
 import math
-from datetime import date, timedelta
+from datetime import date
 
 import numpy as np
 from scipy.optimize import linprog
@@ -35,13 +35,11 @@ from scipy.optimize import linprog
 from lifecfo.cashflow.feasibility import check_feasibility
 from lifecfo.cashflow.forecast import EventKind, build_events, forecast_cash_flow
 from lifecfo.cashflow.position import ShortfallKind, assess_position
-from lifecfo.debt.schedule import balance_after, payoff_order
+from lifecfo.debt.schedule import allocate_extra, payoff_order
 from lifecfo.domain.models import (
     EnvelopeKind,
     ExpenseCategory,
-    ExtraDebtPayment,
     FinancialState,
-    Frequency,
 )
 from lifecfo.domain.money import SATANG_PER_THB
 from lifecfo.optimization.plan import (
@@ -454,34 +452,16 @@ def _round_cumulative(values: list[float], cap: float, out: list[dict[str, int]]
 def _split_extra_repayments(
     state: FinancialState, months: list[PlanMonth], cash: list[int], order: list[str]
 ) -> list[PlanMonth]:
-    """Share each month's extra-repayment cash across debts in payoff order (rules D6).
-
-    Each debt gets at most what it will owe on the sweep date, and a prepayment fee
-    comes out of the same cash. Cash that no debt can take stays unallocated.
-    """
-    debts = {d.id: d for d in state.debts}
-    payments: list[ExtraDebtPayment] = []
-    result: list[PlanMonth] = []
-    for month, available in zip(months, cash, strict=True):
-        extra: dict[str, int] = {}
-        for debt_id in order:
-            if available <= 0:
-                break
-            current = state.model_copy(update={"debt_payments": tuple(payments)})
-            owed = balance_after(current, debt_id, month.transfer_date - timedelta(days=1))
-            fee_rate = debts[debt_id].prepayment_fee_rate or 0
-            # Whole baht applied, such that applied + fee fits in the remaining cash.
-            affordable = math.floor(available / (1 + fee_rate) / SATANG_PER_THB)
-            applied = min(owed // SATANG_PER_THB, affordable) * SATANG_PER_THB
-            if applied <= 0:
-                continue
-            extra[debt_id] = applied
-            available -= applied + round(applied * fee_rate)
-            payments.append(ExtraDebtPayment(
-                id=f"split:{debt_id}:{month.month}", debt_id=debt_id, amount=applied,
-                frequency=Frequency.ONE_TIME, on_date=month.transfer_date))
-        result.append(month.model_copy(update={"extra_debt": extra}))
-    return result
+    """Record each month's extra-repayment cash per debt, in payoff order."""
+    payments = allocate_extra(
+        state, [(m.transfer_date, amount) for m, amount in zip(months, cash, strict=True)],
+        order)
+    by_month: dict[date, dict[str, int]] = {}
+    for payment in payments:
+        assert payment.on_date is not None
+        by_month.setdefault(payment.on_date, {})[payment.debt_id] = payment.amount
+    return [m.model_copy(update={"extra_debt": by_month.get(m.transfer_date, {})})
+            for m in months]
 
 
 def _explain_identical(first: Plan, second: Plan, floors: dict[str, int]) -> IdenticalPlans:

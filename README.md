@@ -28,7 +28,8 @@ investment advice.
 | M2 | Goal optimization, three validated planning strategies, plan validator | Done |
 | AI layer | Provider-agnostic LLM access (Gemini free tier, Groq free plan, local Ollama, offline), agent tools with permission tiers, offline agent, chat view | Done (read and compute tools) |
 | M3 | User approval, sandbox execution, idempotency, hash-chained audit log, Sandbox view | Done |
-| M4, M5 | ShockProof and recovery engine | Next (waiting on economics decisions) |
+| Rules v0.2 | Financial Rules D1 to D9 (C1 to C10): position and deficits, buffer, reserve formula, debt interest and extra repayment, goal flexibility, acceptance tests AT1 to AT16 | Done except recording a real expense in the sandbox (see [status](docs/financial_model/RULES_V0.2_STATUS.md)) |
+| M6 | Rewards and streaks | Next |
 | M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
 
 ## Quick start
@@ -62,7 +63,8 @@ lifecfo/llm/         Provider-agnostic LLM client and settings
 lifecfo/agents/      Tool registry with permission tiers, offline and LLM agents
 lifecfo/services/    Sandbox service: the only code path that changes state
 lifecfo/database/    SQLite store and hash-chained audit log
-scripts/             Offline demo
+scripts/             Offline demo and manual scenario report
+lifecfo/debt/        Debt interest, payoff schedules, Avalanche and Snowball
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
 tests/               unit, integration, and expected-value scenario tests
@@ -74,7 +76,8 @@ docs/                Architecture, financial model, roadmap, competition checkli
 - [System architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
 - [Security design](docs/SECURITY_DESIGN.md)
 - [AI providers and zero-cost setup](docs/AI_PROVIDERS.md)
-- [Financial model](docs/financial_model/FINANCIAL_MODEL.md)
+- [Financial model](docs/financial_model/FINANCIAL_MODEL.md) and [Rules v0.2 status](docs/financial_model/RULES_V0.2_STATUS.md)
+- [Manual scenario validation](docs/testing/MANUAL_SCENARIOS.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Team tasks and interfaces](docs/TEAM_TASKS.md)
 - Team guides (Thai, no install needed): [Member 2](docs/team/MEMBER_2_GUIDE.md), [Member 3](docs/team/MEMBER_3_GUIDE.md)

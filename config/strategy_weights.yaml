@@ -12,6 +12,10 @@
 # flexible_cut_weight   Cost of cutting 1 THB of flexible spending once.
 # surplus_reserve/goal  Where money left after all ramps are met goes first
 #                       (larger value wins; goals are again scaled by priority).
+# surplus_debt          The same for extra debt repayment (rules D6): it only ever
+#                       receives money left after every ramp is met.
+# buffer_weight         Cost of accessible cash being 1 THB below the user's buffer
+#                       for a month (rules D3). Kept high so the buffer comes first.
 
 priority_decay: 0.5
 surplus_bonus_scale: 0.001
@@ -25,6 +29,8 @@ strategies:
     flexible_cut_weight: 2
     surplus_reserve: 3
     surplus_goal: 1
+    surplus_debt: 2
+    buffer_weight: 1000
 
   BALANCED:
     label: Balanced
@@ -34,6 +40,8 @@ strategies:
     flexible_cut_weight: 15
     surplus_reserve: 1
     surplus_goal: 1.5
+    surplus_debt: 1.2
+    buffer_weight: 1000
 
   GOAL_FIRST:
     label: Goal First
@@ -43,3 +51,5 @@ strategies:
     flexible_cut_weight: 20
     surplus_reserve: 0.5
     surplus_goal: 2
+    surplus_debt: 0.8
+    buffer_weight: 1000

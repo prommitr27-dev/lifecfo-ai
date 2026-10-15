@@ -263,11 +263,15 @@ def test_unexpected_expense_tool_is_hypothetical_and_sized_either_way(context):
                                {"percent_of_monthly_income": 30}, Tier.COMPUTE).data
     assert by_percent["hypothetical"] is True
     assert by_percent["expense_amount"] == 9000
-    assert by_percent["expense_not_covered_by_emergency_fund"] == 3000
+    # Paid on payday from the 30,000 salary: unallocated cash covers it.
+    assert by_percent["reserve_withdrawal_needed"] == 0
     by_amount = registry.call(context, "simulate_unexpected_expense",
                               {"amount_thb": 10000, "days_from_now": 11}, Tier.COMPUTE).data
     assert by_amount["expense_due_on"] == "2026-11-12"
-    assert by_amount["expense_not_covered_by_emergency_fund"] == 4000
+    # 1,000 is left on 12 Nov after bills; the 1,000 utility bill on the 15th needs the reserve.
+    assert by_amount["not_covered_by_unallocated_cash"] == 1000
+    assert by_amount["reserve_withdrawal_needed"] == 1000
+    assert by_amount["emergency_reserve"]["gap_after"] == 49000
     assert by_amount["current_plan"]["status"] == "PLAN_INFEASIBLE"
     assert context.state.model_dump() == before
 

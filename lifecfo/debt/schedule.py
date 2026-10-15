@@ -16,11 +16,20 @@ payment, then any extra repayment. A prepayment fee, when known, is charged
 on top of the extra amount.
 """
 
+import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
 
-from lifecfo.domain.models import Debt, DebtStrategy, FinancialState, InterestMethod
+from lifecfo.domain.models import (
+    Debt,
+    DebtStrategy,
+    ExtraDebtPayment,
+    FinancialState,
+    Frequency,
+    InterestMethod,
+)
+from lifecfo.domain.money import SATANG_PER_THB
 from lifecfo.domain.schedule import monthly_occurrences
 
 
@@ -44,6 +53,8 @@ def interest_basis(debt: Debt) -> tuple[InterestBasis, tuple[str, ...]]:
         return InterestBasis.UNAVAILABLE, (
             "The interest rate is unknown. No interest or payoff date is shown; provide "
             "the rate or an estimate to get one. It is not assumed to be 0%.",
+            "For cash planning the minimum payment is assumed to continue for the whole "
+            "period, and extra repayments are capped at the principal still unpaid.",
         )
     if debt.interest_method is None:
         return InterestBasis.ESTIMATED, ESTIMATE_ASSUMPTIONS
@@ -200,3 +211,32 @@ def balance_after(state: FinancialState, debt_id: str, day: date) -> int:
     closing = schedule.periods[-1].closing
     assert closing is not None
     return closing
+
+
+def allocate_extra(
+    state: FinancialState, cash: list[tuple[date, int]], order: list[str]
+) -> list[ExtraDebtPayment]:
+    """Share extra-repayment cash across debts in payoff order (rules D6).
+
+    `cash` lists (payment date, satang available). Each debt gets at most what it owes
+    on that date, in whole baht; a prepayment fee is paid from the same cash. Cash that
+    no debt can take is left unallocated.
+    """
+    debts = {d.id: d for d in state.debts}
+    payments: list[ExtraDebtPayment] = []
+    for on, available in cash:
+        for debt_id in order:
+            if available <= 0:
+                break
+            current = state.model_copy(update={"debt_payments": tuple(payments)})
+            owed = balance_after(current, debt_id, on - timedelta(days=1))
+            fee_rate = debts[debt_id].prepayment_fee_rate or 0
+            affordable = math.floor(available / (1 + fee_rate) / SATANG_PER_THB)
+            applied = min(owed // SATANG_PER_THB, affordable) * SATANG_PER_THB
+            if applied <= 0:
+                continue
+            available -= applied + round(applied * fee_rate)
+            payments.append(ExtraDebtPayment(
+                id=f"extra:{debt_id}:{on.isoformat()}", debt_id=debt_id, amount=applied,
+                frequency=Frequency.ONE_TIME, on_date=on))
+    return payments

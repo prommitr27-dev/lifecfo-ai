@@ -1,6 +1,10 @@
 # Financial Model
 
 Owner: Member 2 (Financial Modeling). Implementation: Member 1.
+
+> Financial Rules v0.2 (D1 to D9) supersede the assumptions below where they
+> differ. How each rule is implemented, and what is still open, is in
+> [RULES_V0.2_STATUS.md](RULES_V0.2_STATUS.md).
 This document states every modelling assumption so results can be checked by hand.
 
 ## 1. Cash flow forecast (implemented, M1)
@@ -21,8 +25,8 @@ envelope and do not change total cash.
 | A1 | Balances in a state are opening balances for `as_of`. | Items scheduled on `as_of` are still to come. |
 | A2 | Within a day, events apply in this order: income, essential expenses, debt minimums, flexible expenses, savings transfers. | Income and a bill on the same day do not cause a shortfall. |
 | A3 | A monthly item on day 29 to 31 falls on the last day of shorter months. | Day 31 becomes 28 February. |
-| A4 | The forecast never draws on the emergency or goal envelopes by itself. | Negative `UNALLOCATED` is reported as a shortfall; funding it is a planning decision. |
-| A5 | Debt minimum payments stop when the balance is cleared. Interest is not accrued. | Understates long-run debt cost. **Open question for Member 2.** |
+| A4 | The forecast never draws on the emergency or goal envelopes by itself. | Negative `UNALLOCATED` is reported as a shortfall. Whether essentials can still be paid is checked against accessible cash (unallocated plus the emergency reserve); goal money is never counted. |
+| A5 | Debt interest follows rules D5 (`lifecfo/debt/schedule.py`): contract-based, estimated, or unavailable. | A debt with an unknown rate keeps its minimum payment for the whole horizon. |
 | A6 | Recurring amounts are constant; there is no inflation or income growth. | Shocks are modelled explicitly instead. |
 | A7 | Essentials are modelled as monthly lump sums on a due day. | Daily spending such as food is front-loaded, which is conservative for liquidity. |
 
