@@ -409,7 +409,8 @@ elif view == "Sandbox":
 
     st.subheader("Record something that really happened")
     st.caption("Use this only for real events, not what-ifs. A confirmed expense becomes an "
-               "essential bill, so earlier proposals must be redone.")
+               "essential bill and a confirmed income change applies from the sandbox date, so "
+               "earlier proposals must be redone.")
     with st.form("confirm_expense", border=True):
         with st.container(horizontal=True, vertical_alignment="bottom"):
             shock_name = st.text_input("What was it?", value="Car repair", max_chars=60)
@@ -418,6 +419,13 @@ elif view == "Sandbox":
             shock_date = st.date_input("Due on", value=stored.as_of, min_value=stored.as_of)
         if st.form_submit_button("Confirm this expense", icon=":material/report:"):
             report_result(sandbox.confirm_expense(shock_name, thb(shock_amount), shock_date))
+    with st.form("confirm_income", border=True):
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            income_percent = st.number_input("Change to monthly income (%)", min_value=-95,
+                                             max_value=100, value=-20, step=5)
+            if st.form_submit_button("Confirm this income change",
+                                     icon=":material/trending_down:"):
+                report_result(sandbox.confirm_income_change(income_percent))
     if stored.emergency is not None and stored.emergency.balance > 0:
         with st.form("withdraw_reserve", border=True):
             with st.container(horizontal=True, vertical_alignment="bottom"):
