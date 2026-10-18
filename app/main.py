@@ -1,6 +1,7 @@
 """LifeCFO AI: Streamlit entry point.
 
-Views: daily cash flow forecast, Personal CFO plan comparison, AI CFO chat, and
+Views: a calm home page (money to spend, bills due, key goals), daily cash flow forecast,
+Personal CFO plan comparison, AI CFO chat, and
 the Sandbox where the user approves plans and the audit log is shown. State is
 kept in a local SQLite sandbox. The what-if control works on a copy and never
 changes stored data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
@@ -18,6 +19,7 @@ import ui
 from lifecfo.agents import AgentContext, AgentReply, Tier, build_agent, explain
 from lifecfo.agents.views import position_data
 from lifecfo.cashflow import (
+    EventKind,
     FeasibilityStatus,
     check_feasibility,
     forecast_cash_flow,
@@ -52,8 +54,9 @@ def setting(name: str) -> str:
 # in-memory sandbox that disappears with their browser session, so one visitor's
 # approvals or reset never show up for another.
 PER_VISITOR = setting("LIFECFO_SANDBOX").strip().lower() == "session"
-VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
+VIEWS = ["Home", "Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
 SUBTITLES = {
+    "Home": "Only what matters today. Details live in the other tabs.",
     "Cash flow": "See what you can use today and how your plan holds up over the horizon.",
     "Personal CFO": "Compare three validated plans for your reserve, goals, and flexible spending.",
     "AI CFO chat": "Ask about your plan, bills, goals, or a what-if. Every number comes from the "
@@ -87,6 +90,22 @@ def baht_columns(frame: pd.DataFrame) -> dict:
     }
 
 
+def go_to(name: str) -> None:
+    st.session_state["view"] = name
+
+
+BILL_KINDS = (EventKind.ESSENTIAL_EXPENSE, EventKind.DEBT_MINIMUM)
+BILL_ICONS = {"rent": "🏠", "food": "🍜", "transport": "🚌", "utilit": "💡", "phone": "📱",
+              "loan": "💳", "card": "💳", "insurance": "🛡️"}
+GOAL_ICONS = {"laptop": "💻", "travel": "✈️", "vacation": "✈️", "trip": "✈️", "car": "🚗",
+              "house": "🏡", "home": "🏡", "study": "🎓", "wedding": "💍"}
+
+
+def pick_icon(name: str, table: dict[str, str], default: str) -> str:
+    lowered = name.lower()
+    return next((icon for key, icon in table.items() if key in lowered), default)
+
+
 def reset_what_if() -> None:
     st.session_state["income_change"] = 0
 
@@ -101,13 +120,13 @@ def cash_chart(daily: pd.DataFrame, low_on, low_value: float) -> alt.LayerChart:
             labelColor="#94A3B8", gridColor="#E9EEF3", domain=False, ticks=False,
             labelExpr="datum.value >= 1000 ? format(datum.value / 1000, '~') + 'k' : datum.value")),
         color=alt.Color("series:N", legend=None, scale=alt.Scale(
-            domain=["Total cash", "Unallocated"], range=[ui.NAVY, ui.TEAL])),
+            domain=["Total cash", "Unallocated"], range=[ui.PRIMARY, ui.MINT])),
         tooltip=[alt.Tooltip("date:T", format="%-d %b %Y"), "series:N",
                  alt.Tooltip("thb:Q", format=",.0f", title="THB")],
     )
     low = pd.DataFrame({"date": [pd.Timestamp(low_on)], "thb": [low_value],
                         "label": [f"Lowest: ฿{low_value:,.0f}"]})
-    point = alt.Chart(low).mark_point(filled=True, fill="#FFFFFF", stroke=ui.TEAL,
+    point = alt.Chart(low).mark_point(filled=True, fill="#FFFFFF", stroke=ui.MINT,
                                       strokeWidth=2, size=60).encode(x="date:T", y="thb:Q")
     label = alt.Chart(low).mark_text(dy=-16, fontSize=11, color="#475569").encode(
         x="date:T", y="thb:Q", text="label:N")
@@ -173,11 +192,90 @@ if hypothetical:
     state = state.model_copy(update={"incomes": tuple(i for i in scaled if i.amount > 0)})
 
 shown = st.session_state.get("view") or VIEWS[0]
-ui.page_header(shown, SUBTITLES[shown], sandbox.state.as_of)
+if shown != "Home":
+    ui.page_header(shown, SUBTITLES[shown], sandbox.state.as_of)
 view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="view", required=True,
                             label_visibility="collapsed") or VIEWS[0]
 
-if view == "Cash flow":
+if view == "Home":
+    today = sandbox.state.as_of
+    ui.home_greeting("there", f"Sandbox date {today:%-d %B %Y}. "
+                              "Only what matters today; details live in the other tabs.")
+    forecast = forecast_cash_flow(state, 92)
+    report = check_feasibility(state, 92, planned=forecast)
+    this_month = monthly_summary(forecast)[0]
+
+    if hypothetical:
+        chip = ("info", f"What-if preview: income {income_change:+d}%. Nothing is saved.")
+    elif report.status is FeasibilityStatus.FEASIBLE:
+        chip = ("ok", "✓ Your plan is funded every day for the next 92 days")
+    elif report.status is FeasibilityStatus.PLAN_INFEASIBLE:
+        chip = ("warn", f"Plan runs short from {ui.short_date(report.first_shortfall_on)}. "
+                        "Let's replan.")
+    else:
+        chip = ("bad", f"Bills at risk from {ui.short_date(report.essential_shortfall_on)}")
+    mood = {"ok": "happy", "info": "thinking", "warn": "worried", "bad": "worried"}[chip[0]]
+    if report.min_unallocated > 0:
+        spare = (f"Spare cash at the lowest point: ฿{ui.baht_text(report.min_unallocated)} "
+                 f"on {ui.short_date(report.min_unallocated_on)}")
+    elif report.min_unallocated == 0:
+        spare = "Every baht has a job: bills, savings and goals are covered"
+    else:
+        spare = f"Short by ฿{ui.baht_text(-report.min_unallocated)} at the lowest point"
+    ui.money_card(f"Yours to spend in {ui.month_label(this_month.month)}",
+                  this_month.flexible,
+                  "after bills, debt payments and savings<br>" + spare,
+                  chip[0], chip[1], mood)
+    st.button("See the full plan", icon=":material/arrow_forward:", key="home-plan",
+              on_click=go_to, args=("Personal CFO",), type="tertiary")
+
+    bills_col, goals_col = st.columns(2, gap="medium")
+    with bills_col, st.container(border=True):
+        ui.card_head("Bills to pay", "The next payments in your plan")
+        bills = [e for day in forecast.days for e in day.events if e.kind in BILL_KINDS][:4]
+        rows = []
+        for i, bill in enumerate(bills):
+            days_left = (bill.on - today).days
+            when = ("today" if days_left == 0 else "tomorrow" if days_left == 1
+                    else f"in {days_left} days")
+            rows.append({
+                "icon": pick_icon(bill.name, BILL_ICONS,
+                                  "💳" if bill.kind is EventKind.DEBT_MINIMUM else "🧾"),
+                "title": bill.name, "note": f"Due {ui.short_date(bill.on)}",
+                "value": f"฿{ui.baht_text(bill.amount)}", "pill": when,
+                "soon": days_left <= 3, "color": (i + 2) % 5,
+            })
+        ui.icon_rows(rows)
+        st.button("See all cash flow", icon=":material/arrow_forward:", key="home-bills",
+                  on_click=go_to, args=("Cash flow",), type="tertiary")
+
+    with goals_col, st.container(border=True):
+        ui.card_head("Your goals", "Saved so far in the sandbox")
+        stored = sandbox.state
+        rows = []
+        reserve = stored.emergency
+        if reserve is not None and stored.emergency_target > 0:
+            percent = round(100 * reserve.balance / stored.emergency_target)
+            rows.append({"icon": "🛟", "title": "Emergency fund",
+                         "note": f"฿{ui.baht_text(reserve.balance)} of "
+                                 f"฿{ui.baht_text(stored.emergency_target)}",
+                         "value": f"{percent}%", "percent": percent, "color": 1})
+        for i, goal in enumerate(sandbox.rewards.status()["goal_progress"]):
+            rows.append({"icon": pick_icon(goal["goal"], GOAL_ICONS, "🎯"), "title": goal["goal"],
+                         "note": f"฿{ui.baht_text(goal['saved'])} of "
+                                 f"฿{ui.baht_text(goal['target'])}",
+                         "value": f"{goal['percent']:g}%", "percent": goal["percent"],
+                         "color": (0, 2, 3, 4)[i % 4]})
+        ui.icon_rows(rows[:3])
+        st.button("See rewards and goals", icon=":material/arrow_forward:", key="home-goals",
+                  on_click=go_to, args=("Rewards",), type="tertiary")
+
+    ui.tip("Wondering about something? Ask your AI CFO, for example "
+           "\"Can I afford a 5,000 baht trip next month?\"")
+    st.button("Ask your AI CFO", icon=":material/chat:", key="home-chat",
+              on_click=go_to, args=("AI CFO chat",))
+
+elif view == "Cash flow":
     horizon = st.segmented_control("Horizon", [30, 60, 92, 183], default=92,
                                    format_func=lambda days: f"{days} days", key="horizon",
                                    required=True,
