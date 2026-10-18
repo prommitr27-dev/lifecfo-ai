@@ -36,6 +36,24 @@ from lifecfo.services import OpResult, SandboxService
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "data" / "synthetic" / "profile_demo.yaml"
 DB_PATH = Path(os.environ.get("LIFECFO_DB_PATH") or ROOT / ".lifecfo" / "sandbox.db")
+
+
+def setting(name: str) -> str:
+    """An environment variable, or a Streamlit secret of the same name (Community Cloud)."""
+    if name in os.environ:
+        return os.environ[name]
+    try:
+        # Loading st.secrets also exports root-level secrets as environment variables,
+        # which is how the LLM settings below pick up keys stored as Cloud secrets.
+        return str(st.secrets.get(name, ""))
+    except Exception:  # no secrets file: a plain local run
+        return ""
+
+
+# On a public deployment set LIFECFO_SANDBOX=session: every visitor then gets a private
+# in-memory sandbox that disappears with their browser session, so one visitor's
+# approvals or reset never show up for another.
+PER_VISITOR = setting("LIFECFO_SANDBOX").strip().lower() == "session"
 VIEWS = ["Home", "Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
 SUBTITLES = {
     "Home": "Only what matters today. Details live in the other tabs.",
@@ -139,7 +157,13 @@ def show_reply(reply: AgentReply) -> None:
 st.set_page_config(page_title="LifeCFO AI", page_icon=":material/savings:", layout="wide")
 ui.apply_styles()
 
-sandbox = SandboxService(open_store(str(DB_PATH)))
+if PER_VISITOR:
+    if "visitor_store" not in st.session_state:
+        st.session_state["visitor_store"] = Store(":memory:")
+    store = st.session_state["visitor_store"]
+else:
+    store = open_store(str(DB_PATH))
+sandbox = SandboxService(store)
 if sandbox.store.load_state() is None:
     sandbox.reset(load_state(PROFILE), actor="SYSTEM")
 state = sandbox.state

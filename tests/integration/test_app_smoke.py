@@ -1,6 +1,9 @@
+import os
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
+
+from lifecfo.services import SandboxService
 
 APP = Path(__file__).resolve().parents[2] / "app" / "main.py"
 
@@ -65,3 +68,19 @@ def test_chat_view_answers_offline_with_tool_trace():
     text = " ".join(m.value for m in at.markdown)
     assert "Hypothetical scenario" in text and "24,000 THB" in text
     assert any("Offline engine" in c.value for c in at.caption)
+
+
+def test_public_mode_gives_each_visitor_a_private_sandbox(monkeypatch):
+    monkeypatch.setenv("LIFECFO_SANDBOX", "session")
+    first = run_app("Sandbox")
+    assert not first.exception
+    store = first.session_state["visitor_store"]
+    start = store.load_state().as_of
+    assert SandboxService(store).advance(30).ok
+
+    second = run_app("Sandbox")
+    assert not second.exception
+    other = second.session_state["visitor_store"]
+    assert other is not store
+    assert other.load_state().as_of == start
+    assert not Path(os.environ["LIFECFO_DB_PATH"]).exists()
