@@ -98,3 +98,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Team tasks and interfaces](docs/TEAM_TASKS.md)
 - [Submission checklist](docs/competition/SUBMISSION_CHECKLIST.md)
+
+## License
+
+Released under the [MIT License](LICENSE).

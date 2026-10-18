@@ -3,6 +3,8 @@ name = "lifecfo-ai"
 version = "0.1.0"
 description = "LifeCFO AI: an agentic personal finance assistant with risk-aware planning, shock recovery, and responsible gamification."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.9",
