@@ -62,13 +62,13 @@ def test_rejecting_leaves_nothing_to_execute():
     assert store().list_plans()[0]["status"] == "REJECTED"
 
 
-def test_what_if_view_cannot_propose():
+def test_moving_the_what_if_slider_leaves_the_page_alone():
     cfo = open_view("Personal CFO")
     cfo.sidebar.slider[0].set_value(-20).run()
     assert not cfo.exception
-    assert not [b for b in cfo.button if "Request approval" in b.label]
-    assert any("what-if view" in i.value for i in cfo.info)
-    assert store().list_plans() == []
+    assert any("Yours to spend this month" in h.value for h in cfo.sidebar.get("html"))
+    assert [b for b in cfo.button if "Request approval" in b.label]
+    assert [e.action for e in store().list_audit()] == ["SANDBOX_RESET"]
 
 
 def test_chat_can_propose_but_execution_waits_for_the_user():
@@ -143,7 +143,7 @@ def test_saving_the_what_if_records_a_real_income_change():
     assert button(home, "real income").disabled
 
     home.slider(key="income_change").set_value(15).run()
-    assert any("Nothing is saved" in h.value for h in home.get("html"))
+    assert any("Yours to spend this month" in h.value for h in home.sidebar.get("html"))
     button(home, "Save +15% as my real income").click().run()
     assert not home.exception
     assert any("Monthly income is now" in t.value for t in home.toast)

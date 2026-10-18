@@ -71,6 +71,10 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 .lc-plan small { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
 .lc-big { font-size:28px; font-weight:600; letter-spacing:-.8px; line-height:1.2;
   color:var(--ink); }
+.lc-whatif { background:var(--butter); border-radius:14px; padding:10px 12px; color:#6B5310; }
+.lc-whatif span, .lc-whatif small { display:block; font-size:11px; }
+.lc-whatif b { display:block; font-size:20px; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums; }
 .lc-unit { font-size:11px; color:var(--muted); margin-top:2px; }
 
 .lc-page-head { display:flex; justify-content:space-between; align-items:flex-start;
@@ -410,6 +414,14 @@ def mascot_src(mood: str = "hello") -> str:
 
 def _mascot(mood: str, alt: str) -> str:
     return f'<img src="{mascot_src(mood)}" alt="{escape(alt)}">'
+
+
+def what_if_preview(flexible: int, min_unallocated: int) -> None:
+    """Two numbers in the what-if card: spending money this month and the lowest point."""
+    low = (f"฿{baht_text(min_unallocated)} spare at the lowest point" if min_unallocated >= 0
+           else f"Short by ฿{baht_text(-min_unallocated)} at the lowest point")
+    st.html(f'<div class="lc-whatif"><span>Yours to spend this month</span>'
+            f'<b>฿{baht_text(flexible)}</b><small>{low}</small></div>')
 
 
 def home_greeting(name: str, subtitle: str) -> None:
