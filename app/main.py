@@ -135,7 +135,7 @@ with st.sidebar:
                 '<div class="lc-unit">change to income</div>' if current else
                 '<div class="lc-big">0%</div><div class="lc-unit">no change</div>')
         income_change = st.slider("Income change (%)", min_value=-100, max_value=50, value=0,
-                                  step=5, key="income_change")
+                                  step=5, key="income_change", label_visibility="collapsed")
         st.caption(":material/info: This is a planning scenario, simulated on a copy. "
                    "Your sandbox data stays as it is.")
         st.button("Reset to current plan", on_click=reset_what_if, width="stretch")
@@ -203,19 +203,17 @@ if view == "Cash flow":
         }
     ).set_index("date")
     events = [e for day in forecast.days for e in day.events]
-    chart_col, events_col = st.columns([2.7, 1])
-    with chart_col, st.container(border=True):
-        head, legend = st.columns([2, 1])
-        with head:
+    with st.container(key="cash-visuals"):
+        chart_col, events_col = st.columns([2.7, 1])
+        with chart_col, st.container(border=True):
             ui.card_head("How your cash changes", f"Projected daily balances · next {horizon} days")
-        with legend:
             ui.chart_legend()
-        st.altair_chart(cash_chart(daily, report.min_unallocated_on,
-                                   baht(report.min_unallocated)), width="stretch")
-        ui.chart_foot()
-    with events_col, st.container(border=True):
-        ui.card_head("Coming up", "Events that change your balance")
-        ui.upcoming_events(events[:4])
+            st.altair_chart(cash_chart(daily, report.min_unallocated_on,
+                                       baht(report.min_unallocated)), width="stretch")
+            ui.chart_foot()
+        with events_col, st.container(border=True):
+            ui.card_head("Coming up", "Events that change your balance")
+            ui.upcoming_events(events[:4])
 
     months = monthly_summary(forecast)
     with st.container(border=True):
