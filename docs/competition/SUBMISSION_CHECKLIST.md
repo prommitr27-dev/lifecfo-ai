@@ -32,7 +32,7 @@ submitting.
 | 2 | Presentation deck | Final presentation of at most 10 minutes | `docs/competition/` | Not started |
 | 3 | Demo video | Optional, at most 5 minutes | Link in README | Not started |
 | 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | In progress; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md` |
-| 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Source material ready in `docs/SECURITY_DESIGN.md` (tiers, controls with tests, known risks) |
+| 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Draft written; for Member 3 to review |
 | 6 | Execution evidence | Simulated-account or sandbox operation logs and demo video | `docs/competition/evidence/` | 15-step demo report and log (`scripts/demo_15_steps.py`), chat transcript and sandbox operation log (`scripts/demo_offline.py`); demo video not started |
 
 ## Before submitting
