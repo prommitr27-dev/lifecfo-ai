@@ -26,13 +26,14 @@ baseRadius = "0.5rem"
 buttonRadius = "0.5rem"
 font = "IBM Plex Sans, sans-serif:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
 codeFont = "IBM Plex Mono, monospace:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
-headingFontWeights = [700, 600, 600, 600, 600, 600]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+headingFontSizes = ["1.9rem", "1.35rem", "1.15rem", "1rem", "0.9rem", "0.8rem"]
 metricValueFontWeight = 600
 redColor = "#DC2626"
 greenColor = "#15803D"
 blueColor = "#1E3A8A"
 yellowColor = "#A16207"
-chartCategoricalColors = ["#1E3A8A", "#38BDF8", "#A16207", "#15803D", "#64748B"]
+chartCategoricalColors = ["#1E3A8A", "#498E93", "#A16207", "#15803D", "#64748B"]
 
 [theme.sidebar]
 backgroundColor = "#FFFFFF"
