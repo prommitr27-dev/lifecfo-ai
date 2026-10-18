@@ -93,6 +93,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 - [Security design](docs/SECURITY_DESIGN.md)
 - [Rewards system](docs/REWARDS_SYSTEM.md)
 - [AI providers and zero-cost setup](docs/AI_PROVIDERS.md)
+- [Public demo on Streamlit Community Cloud](docs/DEPLOY_STREAMLIT_CLOUD.md)
 - [Financial model](docs/financial_model/FINANCIAL_MODEL.md) and [Rules v0.2 status](docs/financial_model/RULES_V0.2_STATUS.md)
 - [Manual scenario validation](docs/testing/MANUAL_SCENARIOS.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
