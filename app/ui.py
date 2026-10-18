@@ -20,7 +20,8 @@ _CSS = """
 <style>
 :root { --ink:#0F172A; --muted:#64748B; --soft:#94A3B8; --navy:#1E3A8A; --line:#E2E8F0; }
 [data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 2.2rem; max-width: 1240px; }
+.block-container { padding-top: 1.5rem; max-width: 1300px; }
+section[data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important; }
 section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 
 /* Underlined view tabs (the segmented control). */
@@ -65,10 +66,12 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
   color:var(--ink); }
 .lc-unit { font-size:11px; color:var(--muted); margin-top:2px; }
 
+.lc-page-head { display:flex; justify-content:space-between; align-items:flex-start;
+  gap:12px 20px; flex-wrap:wrap; }
 .lc-page-title { font-size:30px; letter-spacing:-.85px; line-height:1.15; font-weight:600;
   margin:4px 0 0; color:var(--ink); }
 .lc-page-sub { font-size:13px; color:var(--muted); margin:6px 0 0; }
-.lc-updated { color:var(--soft); font-size:12px; text-align:right; padding-top:14px; }
+.lc-updated { color:var(--muted); font-size:12px; white-space:nowrap; padding-top:14px; }
 
 .lc-metric { border:1px solid var(--line); background:#fff; border-radius:8px; min-height:126px;
   padding:17px 18px; height:100%; }
@@ -83,14 +86,15 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 
 .lc-card-title { font-size:16px; line-height:1.3; font-weight:600; margin:0; color:var(--ink); }
 .lc-card-sub { font-size:12px; color:var(--muted); margin:3px 0 0; }
-.lc-legend { display:flex; gap:15px; color:var(--muted); font-size:11px; justify-content:flex-end;
-  padding-top:4px; }
+.lc-legend { display:flex; gap:15px; color:var(--muted); font-size:11px;
+  justify-content:flex-start; padding-top:7px; }
 .lc-key { display:flex; align-items:center; gap:6px; }
 .lc-swatch { width:15px; height:3px; border-radius:4px; display:inline-block; }
 .lc-foot { display:flex; justify-content:space-between; font-size:11px; color:var(--soft); }
 .lc-foot b { color:#475569; font-weight:600; }
 
-.lc-event { display:flex; gap:10px; padding:11px 0; border-top:1px solid #EEF2F6; }
+.lc-event { display:grid; grid-template-columns:46px minmax(0,1fr) auto;
+  gap:10px; align-items:start; padding:11px 0; border-top:1px solid #EEF2F6; }
 .lc-event-date { flex:0 0 46px; font-size:11px; font-weight:600; color:var(--muted);
   padding-top:1px; }
 .lc-event-body { flex:1; min-width:0; }
@@ -100,8 +104,9 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
   font-variant-numeric: tabular-nums; }
 .lc-event-amount.positive { color:var(--navy); }
 
+.lc-table-wrap { overflow-x:auto; scrollbar-width:thin; }
 .lc-table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums;
-  margin-top:10px; }
+  margin-top:10px; min-width:760px; }
 .lc-table th { color:var(--muted); background:#F8FAFC; font-size:12px; font-weight:600;
   text-align:right; padding:8px 11px; border-top:1px solid var(--line);
   border-bottom:1px solid var(--line); }
@@ -111,6 +116,17 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 .lc-table td:last-child { font-weight:600; color:var(--navy); }
 .lc-table tr:last-child td { border-bottom:0; }
 .lc-mini { font-size:11px; color:var(--muted); text-align:right; padding-top:4px; }
+@media (max-width:1100px) {
+  .st-key-cash-visuals [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; }
+  .st-key-cash-visuals [data-testid="stColumn"] {
+    flex:1 1 100% !important; width:100% !important; min-width:100% !important;
+  }
+}
+@media (max-width:700px) {
+  .block-container { padding-left:1rem; padding-right:1rem; }
+  .lc-page-title { font-size:27px; }
+  .lc-metric { min-height:112px; }
+}
 </style>
 """
 
@@ -162,15 +178,13 @@ def sidebar_brand(as_of: date, horizon_label: str) -> None:
 
 
 def page_header(title: str, subtitle: str, as_of: date) -> None:
-    left, right = st.columns([4, 1], vertical_alignment="top")
-    with left:
-        st.html(
-            '<div class="lc-kicker">LifeCFO AI / Your plan</div>'
-            f'<div class="lc-page-title">{escape(title)}</div>'
-            f'<div class="lc-page-sub">{escape(subtitle)}</div>'
-        )
-    with right:
-        st.html(f'<div class="lc-updated">Sandbox date {as_of.isoformat()}</div>')
+    st.html(
+        '<div class="lc-page-head"><div>'
+        '<div class="lc-kicker">LifeCFO AI / Your plan</div>'
+        f'<div class="lc-page-title">{escape(title)}</div>'
+        f'<div class="lc-page-sub">{escape(subtitle)}</div></div>'
+        f'<div class="lc-updated">Sandbox date {as_of.isoformat()}</div></div>'
+    )
 
 
 def metric_card(label: str, value: str, help_html: str = "", *, unit: str = "THB",
@@ -232,7 +246,8 @@ def monthly_table(months: list[MonthSummary]) -> None:
     columns += [("Flexible", "flexible"), ("Transfers", "transfers")]
     if any(m.extra_debt for m in months):
         columns.append(("Extra debt", "extra_debt"))
-    columns += [("Unallocated", "closing_unallocated"), ("Closing cash", "closing_total_cash")]
+    columns = [("Closing cash", "closing_total_cash"), *columns,
+               ("Unallocated", "closing_unallocated")]
 
     head = "".join(f"<th>{label}</th>" for label, _ in columns)
     body = "".join(
@@ -241,8 +256,9 @@ def monthly_table(months: list[MonthSummary]) -> None:
         + "</tr>"
         for m in months
     )
-    st.html(f'<table class="lc-table"><thead><tr><th>Month</th>{head}</tr></thead>'
-            f"<tbody>{body}</tbody></table>")
+    st.html(f'<div class="lc-table-wrap" role="region" aria-label="Monthly summary" '
+            f'tabindex="0"><table class="lc-table"><thead><tr><th>Month</th>{head}'
+            f'</tr></thead><tbody>{body}</tbody></table></div>')
 
 
 def mini_note(text: str) -> None:
