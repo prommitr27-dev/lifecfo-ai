@@ -57,10 +57,20 @@ uv run python scripts/demo_offline.py
 uv run python scripts/demo_15_steps.py
 ```
 
+Mobile app (iOS and Android, Expo) on top of an HTTP API over the same engines;
+see [mobile/README.md](mobile/README.md):
+
+```bash
+uv run uvicorn lifecfo.api.main:app --host 0.0.0.0 --port 8000
+cd mobile && npm install && npx expo start   # scan the QR code with Expo Go
+```
+
 ## Repository layout
 
 ```
 app/                 Streamlit UI
+mobile/              Expo mobile app (iOS, Android, web)
+lifecfo/api/         HTTP API for the mobile app (FastAPI)
 lifecfo/domain/      Shared models, money, clock, YAML loader
 lifecfo/cashflow/    Daily forecast and feasibility check
 lifecfo/optimization/  LP planner, three strategies, plan validator
