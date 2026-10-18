@@ -1,6 +1,6 @@
 # Visual theme for the Streamlit app.
-# Based on the "UI UX Pro Max" design system recommendation for a fintech /
-# banking product: Minimalism & Swiss style, trust navy palette, IBM Plex Sans.
+# Soft, calm style in the spirit of planner and focus-timer apps: warm cream
+# background, lavender accent, mint and peach highlights, rounded Nunito type.
 # Red is kept for errors only, so it never doubles as the accent colour.
 
 [client]
@@ -11,30 +11,30 @@ gatherUsageStats = false
 
 [theme]
 base = "light"
-primaryColor = "#1E3A8A"
-backgroundColor = "#F8FAFC"
-secondaryBackgroundColor = "#EEF2F7"
-textColor = "#0F172A"
-linkColor = "#1E3A8A"
-borderColor = "#E2E8F0"
-dataframeBorderColor = "#E2E8F0"
-dataframeHeaderBackgroundColor = "#F1F5F9"
-dataframeHeaderTextColor = "#334155"
+primaryColor = "#6E5BD6"
+backgroundColor = "#FBF8F3"
+secondaryBackgroundColor = "#F3EEFB"
+textColor = "#2E2A47"
+linkColor = "#6E5BD6"
+borderColor = "#ECE6F5"
+dataframeBorderColor = "#ECE6F5"
+dataframeHeaderBackgroundColor = "#F6F2FC"
+dataframeHeaderTextColor = "#4A4466"
 showWidgetBorder = true
 showSidebarBorder = true
-baseRadius = "0.5rem"
-buttonRadius = "0.5rem"
-font = "IBM Plex Sans, sans-serif:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+baseRadius = "1rem"
+buttonRadius = "999px"
+font = "Nunito, sans-serif:https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
 codeFont = "IBM Plex Mono, monospace:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
-headingFontWeights = [600, 600, 600, 600, 600, 600]
+headingFontWeights = [700, 700, 700, 700, 700, 700]
 headingFontSizes = ["1.9rem", "1.35rem", "1.15rem", "1rem", "0.9rem", "0.8rem"]
-metricValueFontWeight = 600
+metricValueFontWeight = 700
 redColor = "#DC2626"
-greenColor = "#15803D"
-blueColor = "#1E3A8A"
-yellowColor = "#A16207"
-chartCategoricalColors = ["#1E3A8A", "#498E93", "#A16207", "#15803D", "#64748B"]
+greenColor = "#2F8F6F"
+blueColor = "#6E5BD6"
+yellowColor = "#B7791F"
+chartCategoricalColors = ["#6E5BD6", "#3FA387", "#E28A5B", "#E0B341", "#8A84A3"]
 
 [theme.sidebar]
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F1F5F9"
+backgroundColor = "#F3EEFB"
+secondaryBackgroundColor = "#FFFFFF"
