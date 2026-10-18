@@ -1,0 +1,74 @@
+# Member 2 Finance Review
+
+Scope: Balanced strategy-weight sensitivity, M9 economic interpretation, expected-value fixture coverage, and reward-rule review. All evaluation profiles are synthetic. Findings are diagnostic rather than empirical calibration.
+
+## 1. Balanced strategy weights
+
+### Current settings
+
+`BALANCED` uses `reserve_ramp_months: 6`, `reserve_weight: 5`, `goal_weight: 4`, `flexible_cut_weight: 15`, surplus weights of reserve 1, goal 1.5, and debt 1.2; `buffer_weight` is 1000. These are configurable objective weights, not estimated preference parameters. The high buffer weight encodes a strong preference for keeping accessible cash above the configured buffer. The flexible-cut weight of 15 makes reductions in flexible spending comparatively costly within the objective.
+
+### M9 baseline interpretation
+
+Across 40 synthetic scenarios, LifeCFO reported 10 scenarios with negative unallocated cash and 10 with a missed essential/debt payment; mean largest cash gap was THB 3,965; average months below buffer was 0.97; month-12 reserve attainment averaged 67.3%; and 4 of 23 goals reached deadlines.
+
+Interpret these numbers alongside feasibility. LifeCFO offered a direct plan in 22 cases, a recovery plan in 8, and disclosed no feasible plan in 10. Among the 30 scenarios where a LifeCFO plan was feasible, it had zero scenarios with negative unallocated cash and zero missed essential/debt payments; mean largest gap was THB 0; reserve attainment averaged 89.7%; 4 of 14 goals reached deadlines. The headline 10/40 missed-payment count must not be described as ten failures of an offered LifeCFO plan: those cases were disclosed as infeasible under the evaluation's criteria.
+
+The baseline methods sometimes report higher reserve attainment or goal completion while also leaving cash negative or missing payments. A higher reserve or goal count alone is not necessarily safer if bills cannot be paid from accessible cash. LifeCFO's lower average reserve and modest goal completion reveal a trade-off between liquidity safety, reserve growth, and goal progress; they do not by themselves prove a weight is wrong.
+
+### Sensitivity experiment
+
+The initial five-variant experiment used the same 40 generated scenarios and seed 2026. In that run, `goal_weight=8` increased goals on time from 4/23 to 8/23 while mean reserve attainment fell from 67.3% to 63.3%. Increasing `reserve_weight` to 10 had little effect; shortening the reserve ramp to three months did not improve goal completion. A follow-up multi-seed sensitivity run covered five seeds (2026–2030), 40 scenarios per seed, and all five variants (25 evaluation runs). Pooled across seeds, `goal_weight=8` reached 43/121 due goals (35.5%) versus 26/121 (21.5%) for baseline, while feasible-only reserve attainment fell from 95.4% to 90.6%. The other variants had 24–26/121 goals on time. Negative-cash and missed-payment counts were identical across variants in the pooled all-scenario metrics; this indicates the weight changes shifted goal/reserve allocation but did not improve these safety metrics in this experiment.
+
+These results suggest `goal_weight=8` is a useful candidate for further testing, not a proven optimal setting. Do not replace the main Balanced configuration on this evidence alone. The aggregate table includes 10 infeasible cases, and results across 30 feasible scenarios, by shock type, and with reserve sufficiency should be checked before deciding. The sensitivity script changed one or more parameters at a time; the combined variant is not a clean single-parameter comparison.
+
+### Recommendation
+
+Keep the current Balanced settings as draft defaults for now. The five-seed run improves robustness over a single seed but remains a small, fixed synthetic stress test. Keep the current Balanced settings as draft defaults; if the product team wants to tune further, use a pre-specified grid across `goal_weight`, `reserve_weight`, `reserve_ramp_months`, and `flexible_cut_weight`, and report all-scenario and feasible-only outcomes plus shock-specific safety metrics. Do not describe the results as statistical calibration or evidence of real-world user outcomes.
+
+## 2. M9 economic/financial interpretation
+
+LifeCFO's principal benefit in this evaluation is liquidity protection when a feasible plan exists: it eliminates negative unallocated-cash scenarios and missed payments in the feasible subset, and has no average largest cash gap there. Recovery planning can use reserve withdrawals to cover shortfalls, so a lower ending reserve is partly a consequence of using liquidity to meet obligations rather than leaving money allocated to a reserve while payments are missed. This is a trade-off, not an unqualified win: the Balanced strategy reaches 4/14 due goals in feasible scenarios, compared with 7/14 for Fixed, 4/14 for Priority, and 6/14 for No Replanning; average reserve attainment is 89.7% for LifeCFO versus 114.9%, 87.2%, and 101.4%, respectively.
+
+The 40 profiles are synthetic and do not establish real-world user outcomes. The run tests offline agent routing and injection resistance (20/20 routing prompts and 10/10 injection attempts passed), but live LLM providers were not tested. Any presentation should disclose these limits and separate plan infeasibility from performance after a plan was offered.
+
+## 3. Expected-value CSV fixtures
+
+Added `tests/scenarios/expected/profile_debt_demo_daily.csv` for the existing `data/synthetic/profile_debt_demo.yaml`. Expected balances were independently hand-calculated from the profile's opening balances and dated cash events, rather than copied into the fixture from forecast output.
+
+| Date | Calculation (THB) | Expected unallocated | Expected total cash |
+|---|---|---:|---:|
+| 2026-11-01 | Opening unallocated 0 + salary 35,000; reserve envelope starts at 60,000 | 35,000 | 95,000 |
+| 2026-11-02 | 35,000 - food 6,000 - transport 2,000 - leisure 2,500 | 24,500 | 84,500 |
+| 2026-11-05 | 24,500 - rent 9,000 | 15,500 | 75,500 |
+| 2026-11-10 | 15,500 - personal-loan minimum 1,500 | 14,000 | 74,000 |
+| 2026-11-20 | 14,000 - credit-card minimum 1,000 | 13,000 | 73,000 |
+| 2026-11-25 | 13,000 - store-installment minimum 500 | 12,500 | 72,500 |
+| 2026-11-30 | No further scheduled events | 12,500 | 72,500 |
+| 2026-12-01 | 12,500 + salary 35,000 | 47,500 | 107,500 |
+
+Total cash equals unallocated cash plus the emergency envelope (THB 60,000); debt balances are liabilities and are not subtracted from this cash metric. The expected-value test now discovers and passes both `profile_demo_daily.csv` and `profile_debt_demo_daily.csv`.
+
+## 4. Reward rules
+
+### Current draft
+
+- Financial review: 10 XP, at most once per day.
+- Weekly planning mission: 20 XP, at most once per mission per week.
+- Goal milestones: 50 XP at 25%, 50%, 75%, and 100%, once per goal per milestone (up to 200 XP per goal).
+- Recovery mission: 75 XP, once per confirmed shock.
+- Plan approval, shock confirmation, and streak-protection activation: 0 XP.
+- Level thresholds: 0, 100, 250, 500, 1,000, and 2,000 XP.
+- Streak uses Monday-start ISO weeks, one grace day per week, protected days freeze rather than increment the count, and shock protection lasts at most 14 days or until recovery completion.
+
+### Review and recommendation
+
+Positive design choices: XP does not affect money, credit, or access to safety features. Plan approval gives no XP, reducing the risk of pressuring users to accept a recommendation merely for a reward. Zero XP for confirming a shock or activating protection avoids directly rewarding a crisis declaration. Period limits help reduce repeat-event farming. The YAML comments correctly describe XP values and streak rules as configurable assumptions, not proven behavioural effects.
+
+Keep current values provisionally; do not claim they are empirically optimal. Add or verify tests for duplicate event idempotency, once-per-day and once-per-week caps, one award per goal/milestone, repeated shock confirmation, recovery completion only after a meaningful action, ISO-week and time-zone boundaries, grace-day counting, and protection expiry/early termination. Confirm the UI's level numbering matches the six thresholds. In particular, ensure a recovery mission is not automatically marked complete merely because a shock was confirmed. These are implementation/test recommendations, not confirmed defects in the YAML itself.
+
+## Test status and limitations
+
+- `python -m pytest tests/unit tests/scenarios -q`: **all passed** in the current environment, including expected-value fixture checks (2 fixtures).
+- Full `python -m pytest -q` remains blocked at collection of two integration test modules because `streamlit` is not installed. Installing dependencies via `uv` was attempted, but package download failed due to DNS/network resolution in this environment. This is an environment limitation, not a failing test assertion; rerun the full suite in an environment with dependency access before submission.
+- No main strategy weights or reward values were silently changed.
