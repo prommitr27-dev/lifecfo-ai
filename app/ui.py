@@ -165,6 +165,28 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 .lc-tip { display:flex; gap:12px; align-items:center; background:var(--butter);
   border-radius:20px; padding:14px 18px; color:#6B5310; font-size:13px; }
 .lc-tip img { width:44px; height:44px; flex:0 0 44px; }
+/* Motion and touch polish (Emil Kowalski's design-engineering rules): press feedback
+   on every button, strong ease-out, only transform/opacity animate, a short one-time
+   entrance for the home cards, and no motion when the user asks for reduced motion. */
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+html { -webkit-tap-highlight-color: transparent; }
+button, [role="button"], [role="radio"] { touch-action: manipulation; }
+.stButton button, .stDownloadButton button, .st-key-view button,
+[data-testid="stFormSubmitButton"] button {
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, color 150ms ease;
+}
+.stButton button:active, .stDownloadButton button:active, .st-key-view button:active,
+[data-testid="stFormSubmitButton"] button:active { transform: scale(0.97); }
+@keyframes lc-rise { from { opacity: 0; transform: translateY(8px); } }
+.lc-hello, .lc-money, .lc-row, .lc-tip { animation: lc-rise 260ms var(--ease-out) both; }
+.lc-money { animation-delay: 40ms; }
+.lc-row:nth-child(2) { animation-delay: 30ms; } .lc-row:nth-child(3) { animation-delay: 60ms; }
+.lc-row:nth-child(4) { animation-delay: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .lc-hello, .lc-money, .lc-row, .lc-tip { animation: none; }
+  .stButton button, .st-key-view button { transition: background-color 150ms ease; }
+  .stButton button:active, .st-key-view button:active { transform: none; }
+}
 @media (max-width:1100px) {
   .st-key-cash-visuals [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; }
   .st-key-cash-visuals [data-testid="stColumn"] {
@@ -180,6 +202,8 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
   .lc-money-value { font-size:38px; }
   .lc-money img { width:78px; height:78px; flex-basis:78px; }
   .lc-hello h1 { font-size:25px; }
+  /* 16px stops iOS from zooming into the field on focus. */
+  input, textarea { font-size:16px !important; }
 }
 </style>
 """
