@@ -4,7 +4,8 @@ Views: a calm home page (money to spend, bills due, key goals), daily cash flow 
 Personal CFO plan comparison, AI CFO chat, and
 the Sandbox where the user approves plans and the audit log is shown. State is
 kept in a local SQLite sandbox. The sidebar income what-if previews a change inside
-its own card and leaves the page alone; only "Save as my real income" changes data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
+its own card and leaves the page alone; only "Save as my real income" changes data.
+The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
 """
 
 import json
