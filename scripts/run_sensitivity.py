@@ -161,13 +161,32 @@ def write_report(all_rows: list[dict], summary: list[dict], base: dict) -> None:
             f"{r['feasible_goals_on_time_count']}/{r['feasible_goals_due']} "
             f"({r['feasible_goals_on_time_rate_percent']}%) | {r['all_no_plan']} |"
         )
+    life = [r for r in all_rows if r["method"] == "LIFECFO"]
+    no_plan = [r for r in life if r["outcome"] == "NO_PLAN_DISCLOSED"]
+    negative = [r for r in life if int(r["shortfall_days"]) > 0]
+    missed = [r for r in life if r["missed_essential_payment"].lower() == "true"]
+    no_plan_sets = {
+        frozenset((r["experiment_seed"], r["seed"]) for r in no_plan if r["variant"] == name)
+        for name in VARIANTS
+    }
     lines += [
+        "",
+        "## Safety check (row level, all seeds and variants)",
+        "",
+        f"- LifeCFO rows: {len(life)} ({len(SEEDS)} seeds x {COUNT} scenarios x "
+        f"{len(VARIANTS)} variants).",
+        f"- Negative-cash rows inside `NO_PLAN_DISCLOSED`: "
+        f"{sum(r['outcome'] == 'NO_PLAN_DISCLOSED' for r in negative)} of {len(negative)}.",
+        f"- Missed-payment rows inside `NO_PLAN_DISCLOSED`: "
+        f"{sum(r['outcome'] == 'NO_PLAN_DISCLOSED' for r in missed)} of {len(missed)}.",
+        f"- Every variant has the same set of no-plan scenarios: "
+        f"{'yes' if len(no_plan_sets) == 1 else 'no'}.",
         "",
         "## Reading the results",
         "",
-        "- Negative cash and missed payments occur only in `NO_PLAN_DISCLOSED` scenarios, "
-        "which do not depend on the Balanced weights, so these counts are identical across "
-        "variants by construction.",
+        "- When the safety check shows every negative-cash and missed-payment row inside "
+        "`NO_PLAN_DISCLOSED` and the same no-plan set in every variant, those counts cannot "
+        "change with the Balanced weights.",
         "- Compare variants seed by seed, not only pooled totals.",
         "- Interpretation and recommendation: "
         "[MEMBER2_FINANCE_REVIEW.md](../MEMBER2_FINANCE_REVIEW.md).",
