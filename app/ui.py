@@ -89,7 +89,7 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 .lc-metric-help strong { color:var(--navy); font-weight:600; }
 .lc-metric-help strong.bad { color:#B91C1C; }
 
-.lc-card-title { font-size:16px; line-height:1.3; font-weight:600; margin:0; color:var(--ink); }
+.lc-card-title { font-size:17px; line-height:1.3; font-weight:800; margin:0; color:var(--ink); }
 .lc-card-sub { font-size:12px; color:var(--muted); margin:3px 0 0; }
 .lc-legend { display:flex; gap:15px; color:var(--muted); font-size:11px;
   justify-content:flex-start; padding-top:7px; }
