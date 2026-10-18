@@ -120,3 +120,14 @@ def test_turning_rewards_off_records_nothing():
     rewards.toggle[0].set_value(False).run()
     assert not [b for b in rewards.button if "reviewed" in b.label]
     assert store().list_reward_events() == []
+
+
+def test_user_confirms_an_income_change_in_the_sandbox():
+    sandbox = open_view("Sandbox")
+    sandbox.button(key="FormSubmitter:confirm_income-Confirm this income change").click().run()
+    assert any("INCOME_CHANGE_CONFIRMED" in s.value and "24,000.00 THB" in s.value
+               for s in sandbox.success)
+    db = store()
+    assert sum(i.amount for i in db.load_state().incomes) == 2_400_000
+    assert [e.action for e in db.list_audit()][-1] == "INCOME_CHANGE_CONFIRMED"
+    assert db.list_audit()[-1].actor == "USER"
