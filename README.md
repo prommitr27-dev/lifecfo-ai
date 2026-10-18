@@ -37,12 +37,15 @@ investment advice.
 
 ## Quick start
 
-Requires Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/). uv
+uses Python 3.12 or newer if one is installed and downloads one otherwise.
 
 ```bash
+git clone https://github.com/prommitr27-dev/lifecfo-ai.git
+cd lifecfo-ai
 uv sync
-uv run pytest
-uv run streamlit run app/main.py
+uv run pytest                      # 288 tests
+uv run streamlit run app/main.py   # web app at http://localhost:8501
 ```
 
 The app, the tests, and the demo run with **no API key, no paid service, and no
@@ -57,12 +60,13 @@ uv run python scripts/demo_offline.py
 uv run python scripts/demo_15_steps.py
 ```
 
-Mobile app (iOS and Android, Expo) on top of an HTTP API over the same engines;
-see [mobile/README.md](mobile/README.md):
+Mobile app (iOS and Android, Expo) on top of an HTTP API over the same engines.
+Needs Node.js 22; see [mobile/README.md](mobile/README.md). Run the API in one
+terminal and the app in another:
 
 ```bash
-uv run uvicorn lifecfo.api.main:app --host 0.0.0.0 --port 8000
-cd mobile && npm install && npx expo start   # scan the QR code with Expo Go
+uv run uvicorn lifecfo.api.main:app --host 0.0.0.0 --port 8000   # API docs at http://localhost:8000/docs
+cd mobile && npm ci && npx expo start   # scan the QR code with Expo Go, or press w for a browser
 ```
 
 ## Repository layout
@@ -78,9 +82,9 @@ lifecfo/llm/         Provider-agnostic LLM client and settings
 lifecfo/agents/      Tool registry with permission tiers, offline and LLM agents
 lifecfo/services/    Sandbox service: the only code path that changes state
 lifecfo/database/    SQLite store and hash-chained audit log
-scripts/             Offline demo and manual scenario report
 lifecfo/debt/        Debt interest, payoff schedules, Avalanche and Snowball
 lifecfo/rewards/     XP, missions, badges, and the streak state machine
+scripts/             Demos, evaluation, and report generators
 config/              Tunable assumptions owned by the modelling and risk leads
 data/synthetic/      Synthetic profiles (money in baht, `_thb` suffix)
 tests/               unit, integration, and expected-value scenario tests
@@ -101,4 +105,7 @@ docs/                Architecture, financial model, roadmap, competition checkli
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [MIT License](LICENSE). Licenses of all third-party Python
+and npm packages are listed in
+[docs/competition/THIRD_PARTY_LICENSES.md](docs/competition/THIRD_PARTY_LICENSES.md);
+none conflicts with MIT.

@@ -7,6 +7,9 @@ the HTTP API in `lifecfo/api/`.
 
 ## Run it on a phone (demo)
 
+Needs Node.js 22 (the version CI uses) and the Python setup from the main
+README.
+
 1. Start the API on your computer, reachable from the local network:
 
    ```bash
@@ -18,7 +21,7 @@ the HTTP API in `lifecfo/api/`.
 
    ```bash
    cd mobile
-   npm install
+   npm ci
    npx expo start
    ```
 
