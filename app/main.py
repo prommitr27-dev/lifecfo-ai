@@ -50,6 +50,15 @@ def baht(satang: int) -> float:
     return satang / SATANG_PER_THB
 
 
+def baht_columns(frame: pd.DataFrame) -> dict:
+    """Show every numeric column with thousand separators, e.g. 30,000."""
+    return {
+        name: st.column_config.NumberColumn(format="localized")
+        for name in frame.columns
+        if pd.api.types.is_numeric_dtype(frame[name]) and name != "#"
+    }
+
+
 def report_result(result: OpResult) -> None:
     """Keep the outcome of a sandbox action so it is shown after the rerun."""
     st.session_state["sandbox_message"] = (result.ok, f"{result.code}: {result.message}")
@@ -102,19 +111,22 @@ if view == "Cash flow":
 
     st.subheader("Current plan")
     if report.status is FeasibilityStatus.FEASIBLE:
-        st.success("FEASIBLE: the current plan is funded on every day of the horizon.")
+        st.success("FEASIBLE: the current plan is funded on every day of the horizon.",
+                   icon=":material/check_circle:")
     elif report.status is FeasibilityStatus.PLAN_INFEASIBLE:
         st.warning(
             f"PLAN_INFEASIBLE: unallocated cash first goes negative on "
             f"{report.first_shortfall_on} and the plan runs {format_thb(report.max_shortfall)} "
             "short. Essentials can still be paid, so the plan can be fixed by replanning."
-            + (" Existing reserves would be needed." if report.needs_reserves else "")
+            + (" Existing reserves would be needed." if report.needs_reserves else ""),
+            icon=":material/warning:",
         )
     else:
         st.error(
             f"ESSENTIAL_SHORTFALL: from {report.essential_shortfall_on}, essentials cannot be "
             "paid even with all flexible spending cut and every envelope used. "
-            f"Shortfall: {format_thb(report.essential_shortfall)}."
+            f"Shortfall: {format_thb(report.essential_shortfall)}.",
+            icon=":material/error:",
         )
 
     with st.container(horizontal=True):
@@ -136,7 +148,10 @@ if view == "Cash flow":
 
     st.subheader("Monthly summary (THB)")
     monthly = pd.DataFrame([m.model_dump() for m in monthly_summary(forecast)]).set_index("month")
-    st.dataframe(monthly / SATANG_PER_THB, alt="Monthly cash flow summary")
+    monthly = (monthly / SATANG_PER_THB).rename(
+        columns=lambda name: name.replace("_", " ").capitalize())
+    monthly.index.name = "Month"
+    st.dataframe(monthly, column_config=baht_columns(monthly), alt="Monthly cash flow summary")
 
     with st.expander("Scheduled cash events"):
         events = pd.DataFrame(
@@ -146,7 +161,8 @@ if view == "Cash flow":
                 for e in day.events
             ]
         )
-        st.dataframe(events, hide_index=True, alt="Scheduled cash events")
+        st.dataframe(events, hide_index=True, column_config=baht_columns(events),
+                     alt="Scheduled cash events")
 
 elif view == "AI CFO chat":
     load_env_file(ROOT / ".env")
@@ -323,15 +339,14 @@ elif view == "Sandbox":
     st.subheader("Sandbox transactions")
     rows = sandbox.store.list_transactions()
     if rows:
-        st.dataframe(
-            pd.DataFrame([
-                {"#": r["id"], "date": r["effective_on"], "kind": r["kind"], "ref": r["ref"],
-                 "from": r["from_envelope"], "to": r["to_envelope"],
-                 "amount_thb": baht(r["amount"])}
-                for r in rows
-            ]),
-            hide_index=True, alt="Sandbox transactions",
-        )
+        transactions = pd.DataFrame([
+            {"#": r["id"], "date": r["effective_on"], "kind": r["kind"], "ref": r["ref"],
+             "from": r["from_envelope"], "to": r["to_envelope"],
+             "amount_thb": baht(r["amount"])}
+            for r in rows
+        ])
+        st.dataframe(transactions, hide_index=True, column_config=baht_columns(transactions),
+                     alt="Sandbox transactions")
     else:
         st.caption("No transactions yet.")
 
@@ -390,7 +405,8 @@ else:
     else:
         st.success(
             f"OK: {len(result.plans)} plans generated. Each one passed the deterministic "
-            "validator and the daily cash check."
+            "validator and the daily cash check.",
+            icon=":material/verified:",
         )
         for note in result.identical:
             st.info(note.describe())
@@ -438,7 +454,7 @@ else:
                 for month in plan.months
             ]
         ).fillna(0.0)
-        st.dataframe(schedule, hide_index=True,
+        st.dataframe(schedule, hide_index=True, column_config=baht_columns(schedule),
                      alt=f"Monthly allocations for the {plan.label} plan in baht")
         st.caption("Savings are swept on the last day of each month. A plan is only a "
                    "proposal until you approve it in the Sandbox view.")
