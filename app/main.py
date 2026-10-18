@@ -10,8 +10,10 @@ import json
 import os
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
+import ui
 
 from lifecfo.agents import AgentContext, AgentReply, Tier, build_agent, explain
 from lifecfo.agents.views import position_data
@@ -33,6 +35,14 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "data" / "synthetic" / "profile_demo.yaml"
 DB_PATH = Path(os.environ.get("LIFECFO_DB_PATH") or ROOT / ".lifecfo" / "sandbox.db")
 VIEWS = ["Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
+SUBTITLES = {
+    "Cash flow": "See what you can use today and how your plan holds up over the horizon.",
+    "Personal CFO": "Compare three validated plans for your reserve, goals, and flexible spending.",
+    "AI CFO chat": "Ask about your plan, bills, goals, or a what-if. Every number comes from the "
+                   "engines.",
+    "Rewards": "Goal progress, streaks, and weekly missions. For motivation only.",
+    "Sandbox": "Approve plans, record real events, and check the audit log. Synthetic data only.",
+}
 
 
 @st.cache_resource
@@ -48,6 +58,42 @@ def plan_for(state_json: str, horizon_months: int) -> PlanningResult:
 
 def baht(satang: int) -> float:
     return satang / SATANG_PER_THB
+
+
+def baht_columns(frame: pd.DataFrame) -> dict:
+    """Show every numeric column with thousand separators, e.g. 30,000."""
+    return {
+        name: st.column_config.NumberColumn(format="localized")
+        for name in frame.columns
+        if pd.api.types.is_numeric_dtype(frame[name]) and name != "#"
+    }
+
+
+def reset_what_if() -> None:
+    st.session_state["income_change"] = 0
+
+
+def cash_chart(daily: pd.DataFrame, low_on, low_value: float) -> alt.LayerChart:
+    """Daily balances: total cash in navy, unallocated in teal, the lowest point marked."""
+    long = daily.reset_index().melt("date", var_name="series", value_name="thb")
+    lines = alt.Chart(long).mark_line(strokeWidth=2.4).encode(
+        x=alt.X("date:T", title=None, axis=alt.Axis(format="%-d %b", grid=False,
+                                                    labelColor="#94A3B8", tickCount=6)),
+        y=alt.Y("thb:Q", title=None, axis=alt.Axis(
+            labelColor="#94A3B8", gridColor="#E9EEF3", domain=False, ticks=False,
+            labelExpr="datum.value >= 1000 ? format(datum.value / 1000, '~') + 'k' : datum.value")),
+        color=alt.Color("series:N", legend=None, scale=alt.Scale(
+            domain=["Total cash", "Unallocated"], range=[ui.NAVY, ui.TEAL])),
+        tooltip=[alt.Tooltip("date:T", format="%-d %b %Y"), "series:N",
+                 alt.Tooltip("thb:Q", format=",.0f", title="THB")],
+    )
+    low = pd.DataFrame({"date": [pd.Timestamp(low_on)], "thb": [low_value],
+                        "label": [f"Lowest: ฿{low_value:,.0f}"]})
+    point = alt.Chart(low).mark_point(filled=True, fill="#FFFFFF", stroke=ui.TEAL,
+                                      strokeWidth=2, size=60).encode(x="date:T", y="thb:Q")
+    label = alt.Chart(low).mark_text(dy=-16, fontSize=11, color="#475569").encode(
+        x="date:T", y="thb:Q", text="label:N")
+    return (lines + point + label).properties(height=230).configure_view(stroke=None)
 
 
 def report_result(result: OpResult) -> None:
@@ -72,8 +118,7 @@ def show_reply(reply: AgentReply) -> None:
 
 
 st.set_page_config(page_title="LifeCFO AI", page_icon=":material/savings:", layout="wide")
-st.title("LifeCFO AI")
-st.caption("Your financial plan should adapt when life doesn't. Synthetic sandbox data only.")
+ui.apply_styles()
 
 sandbox = SandboxService(open_store(str(DB_PATH)))
 if sandbox.store.load_state() is None:
@@ -81,9 +126,19 @@ if sandbox.store.load_state() is None:
 state = sandbox.state
 
 with st.sidebar:
-    st.header("What-if (hypothetical)")
-    income_change = st.slider("Income change (%)", min_value=-100, max_value=50, value=0, step=5)
-    st.caption("Hypothetical scenarios are simulated on a copy. Nothing is saved.")
+    ui.sidebar_brand(state.as_of, "Synthetic data")
+    with st.container(border=True):
+        ui.card_head("What-if income changes?",
+                     "Preview how a change to every income may affect your plan.")
+        current = st.session_state.get("income_change", 0)
+        st.html(f'<div class="lc-big">{current:+d}%</div>'
+                '<div class="lc-unit">change to income</div>' if current else
+                '<div class="lc-big">0%</div><div class="lc-unit">no change</div>')
+        income_change = st.slider("Income change (%)", min_value=-100, max_value=50, value=0,
+                                  step=5, key="income_change")
+        st.caption(":material/info: This is a planning scenario, simulated on a copy. "
+                   "Your sandbox data stays as it is.")
+        st.button("Reset to current plan", on_click=reset_what_if, width="stretch")
 
 hypothetical = income_change != 0
 if hypothetical:
@@ -93,60 +148,97 @@ if hypothetical:
     )
     state = state.model_copy(update={"incomes": tuple(i for i in scaled if i.amount > 0)})
 
-view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="view") or VIEWS[0]
+shown = st.session_state.get("view") or VIEWS[0]
+ui.page_header(shown, SUBTITLES[shown], sandbox.state.as_of)
+view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="view", required=True,
+                            label_visibility="collapsed") or VIEWS[0]
 
 if view == "Cash flow":
-    horizon = st.select_slider("Horizon (days)", options=[30, 60, 92, 183], value=92)
+    horizon = st.segmented_control("Horizon", [30, 60, 92, 183], default=92,
+                                   format_func=lambda days: f"{days} days", key="horizon",
+                                   required=True,
+                                   label_visibility="collapsed") or 92
     forecast = forecast_cash_flow(state, horizon)
     report = check_feasibility(state, horizon, planned=forecast)
 
-    st.subheader("Current plan")
     if report.status is FeasibilityStatus.FEASIBLE:
-        st.success("FEASIBLE: the current plan is funded on every day of the horizon.")
+        st.success("FEASIBLE: the current plan is funded on every day of the horizon.",
+                   icon=":material/check_circle:")
     elif report.status is FeasibilityStatus.PLAN_INFEASIBLE:
         st.warning(
             f"PLAN_INFEASIBLE: unallocated cash first goes negative on "
             f"{report.first_shortfall_on} and the plan runs {format_thb(report.max_shortfall)} "
             "short. Essentials can still be paid, so the plan can be fixed by replanning."
-            + (" Existing reserves would be needed." if report.needs_reserves else "")
+            + (" Existing reserves would be needed." if report.needs_reserves else ""),
+            icon=":material/warning:",
         )
     else:
         st.error(
             f"ESSENTIAL_SHORTFALL: from {report.essential_shortfall_on}, essentials cannot be "
             "paid even with all flexible spending cut and every envelope used. "
-            f"Shortfall: {format_thb(report.essential_shortfall)}."
+            f"Shortfall: {format_thb(report.essential_shortfall)}.",
+            icon=":material/error:",
         )
 
+    if report.min_unallocated > 0:
+        low_help = f"Lowest point on {ui.short_date(report.min_unallocated_on)}"
+    elif report.min_unallocated == 0:
+        low_help = "Plan stays funded, with <strong>no spare buffer</strong>"
+    else:
+        low_help = (f'<strong class="bad">Short</strong> from '
+                    f"{ui.short_date(report.min_unallocated_on)}")
     with st.container(horizontal=True):
-        st.metric("Sandbox cash today", format_thb(state.total_cash), border=True)
-        st.metric("Lowest unallocated cash", format_thb(report.min_unallocated), border=True,
-                  help=f"On {report.min_unallocated_on}")
-        st.metric("Envelopes at end of horizon",
-                  format_thb(sum(forecast.closing_envelopes.values())), border=True)
+        ui.metric_card("Sandbox cash today", ui.baht_text(state.total_cash),
+                       f"Cash available on {ui.short_date(state.as_of)}", primary=True)
+        ui.metric_card("Lowest unallocated cash", ui.baht_text(report.min_unallocated), low_help)
+        ui.metric_card("Envelopes at end of horizon",
+                       ui.baht_text(sum(forecast.closing_envelopes.values())),
+                       "Reserved in savings envelopes")
 
-    st.subheader("Projected daily balances (THB)")
     daily = pd.DataFrame(
         {
             "date": [day.on for day in forecast.days],
-            "Unallocated": [baht(day.unallocated) for day in forecast.days],
             "Total cash": [baht(day.total_cash) for day in forecast.days],
+            "Unallocated": [baht(day.unallocated) for day in forecast.days],
         }
     ).set_index("date")
-    st.line_chart(daily, alt="Projected daily unallocated and total cash balances")
+    events = [e for day in forecast.days for e in day.events]
+    chart_col, events_col = st.columns([2.7, 1])
+    with chart_col, st.container(border=True):
+        head, legend = st.columns([2, 1])
+        with head:
+            ui.card_head("How your cash changes", f"Projected daily balances · next {horizon} days")
+        with legend:
+            ui.chart_legend()
+        st.altair_chart(cash_chart(daily, report.min_unallocated_on,
+                                   baht(report.min_unallocated)), width="stretch")
+        ui.chart_foot()
+    with events_col, st.container(border=True):
+        ui.card_head("Coming up", "Events that change your balance")
+        ui.upcoming_events(events[:4])
 
-    st.subheader("Monthly summary (THB)")
-    monthly = pd.DataFrame([m.model_dump() for m in monthly_summary(forecast)]).set_index("month")
-    st.dataframe(monthly / SATANG_PER_THB, alt="Monthly cash flow summary")
+    months = monthly_summary(forecast)
+    with st.container(border=True):
+        head, note = st.columns([3, 1])
+        with head:
+            ui.card_head("Monthly summary", "Income and outflows in THB · Unallocated excludes "
+                                            "reserved envelopes")
+        with note:
+            if months:
+                ui.mini_note(f"{ui.month_label(months[0].month)} – "
+                             f"{ui.month_label(months[-1].month)}")
+        ui.monthly_table(months)
 
-    with st.expander("Scheduled cash events"):
-        events = pd.DataFrame(
+    with st.expander("All planned movements"):
+        table = pd.DataFrame(
             [
-                {"date": e.on, "kind": e.kind.value, "name": e.name, "amount_thb": baht(e.amount)}
-                for day in forecast.days
-                for e in day.events
+                {"Date": e.on, "Kind": e.kind.value.replace("_", " ").capitalize(),
+                 "Name": e.name, "Amount (THB)": baht(e.amount)}
+                for e in events
             ]
         )
-        st.dataframe(events, hide_index=True, alt="Scheduled cash events")
+        st.dataframe(table, hide_index=True, column_config=baht_columns(table),
+                     alt="Scheduled cash events")
 
 elif view == "AI CFO chat":
     load_env_file(ROOT / ".env")
@@ -258,11 +350,13 @@ elif view == "Sandbox":
     stored = sandbox.state
     chain_ok = sandbox.store.verify_audit_chain()
     with st.container(horizontal=True):
-        st.metric("Sandbox date", stored.as_of.isoformat(), border=True)
-        st.metric("Sandbox cash", format_thb(stored.total_cash), border=True)
-        st.metric("Audit log", "Intact" if chain_ok else "Altered", border=True,
-                  help="Each entry stores the hash of the previous one.")
-    st.caption("A simulated account. No real money, bank, or credentials are involved.")
+        ui.metric_card("Sandbox date", stored.as_of.isoformat(), "Simulated calendar", unit="",
+                       primary=True)
+        ui.metric_card("Sandbox cash", ui.baht_text(stored.total_cash),
+                       "A simulated account. No real money, bank, or credentials.")
+        ui.metric_card("Audit log", "Intact" if chain_ok else "Altered",
+                       "Each entry stores the hash of the previous one" if chain_ok else
+                       '<strong class="bad">The hash chain does not match</strong>', unit="")
 
     st.subheader("Waiting for your decision")
     pending = sandbox.store.list_plans("PROPOSED")
@@ -323,15 +417,14 @@ elif view == "Sandbox":
     st.subheader("Sandbox transactions")
     rows = sandbox.store.list_transactions()
     if rows:
-        st.dataframe(
-            pd.DataFrame([
-                {"#": r["id"], "date": r["effective_on"], "kind": r["kind"], "ref": r["ref"],
-                 "from": r["from_envelope"], "to": r["to_envelope"],
-                 "amount_thb": baht(r["amount"])}
-                for r in rows
-            ]),
-            hide_index=True, alt="Sandbox transactions",
-        )
+        transactions = pd.DataFrame([
+            {"#": r["id"], "date": r["effective_on"], "kind": r["kind"], "ref": r["ref"],
+             "from": r["from_envelope"], "to": r["to_envelope"],
+             "amount_thb": baht(r["amount"])}
+            for r in rows
+        ])
+        st.dataframe(transactions, hide_index=True, column_config=baht_columns(transactions),
+                     alt="Sandbox transactions")
     else:
         st.caption("No transactions yet.")
 
@@ -390,7 +483,8 @@ else:
     else:
         st.success(
             f"OK: {len(result.plans)} plans generated. Each one passed the deterministic "
-            "validator and the daily cash check."
+            "validator and the daily cash check.",
+            icon=":material/verified:",
         )
         for note in result.identical:
             st.info(note.describe())
@@ -438,7 +532,7 @@ else:
                 for month in plan.months
             ]
         ).fillna(0.0)
-        st.dataframe(schedule, hide_index=True,
+        st.dataframe(schedule, hide_index=True, column_config=baht_columns(schedule),
                      alt=f"Monthly allocations for the {plan.label} plan in baht")
         st.caption("Savings are swept on the last day of each month. A plan is only a "
                    "proposal until you approve it in the Sandbox view.")
