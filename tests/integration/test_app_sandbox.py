@@ -131,3 +131,24 @@ def test_user_confirms_an_income_change_in_the_sandbox():
     assert sum(i.amount for i in db.load_state().incomes) == 2_400_000
     assert [e.action for e in db.list_audit()][-1] == "INCOME_CHANGE_CONFIRMED"
     assert db.list_audit()[-1].actor == "USER"
+
+
+def monthly_income(state) -> int:
+    return sum(i.amount for i in state.incomes if i.frequency.name == "MONTHLY")
+
+
+def test_saving_the_what_if_records_a_real_income_change():
+    home = open_view("Home")
+    before = store().load_state()
+    assert not [b for b in home.button if "real income" in b.label]
+
+    home.slider(key="income_change").set_value(15).run()
+    assert any("Nothing is saved" in h.value for h in home.get("html"))
+    button(home, "Save +15% as my real income").click().run()
+    assert not home.exception
+    assert any("Monthly income is now" in s.value for s in home.success)
+    assert home.session_state["income_change"] == 0
+
+    db = store()
+    assert db.list_audit()[-1].action == "INCOME_CHANGE_CONFIRMED"
+    assert monthly_income(db.load_state()) == round(monthly_income(before) * 115 / 100)

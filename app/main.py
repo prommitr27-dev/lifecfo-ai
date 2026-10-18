@@ -110,6 +110,14 @@ def reset_what_if() -> None:
     st.session_state["income_change"] = 0
 
 
+def save_what_if() -> None:
+    """Turn the previewed income change into a confirmed, audited sandbox change."""
+    result = sandbox.confirm_income_change(st.session_state.get("income_change", 0))
+    st.session_state["what_if_message"] = (result.ok, result.message)
+    if result.ok:
+        st.session_state["income_change"] = 0
+
+
 def cash_chart(daily: pd.DataFrame, low_on, low_value: float) -> alt.LayerChart:
     """Daily balances: total cash in navy, unallocated in teal, the lowest point marked."""
     long = daily.reset_index().melt("date", var_name="series", value_name="thb")
@@ -181,7 +189,14 @@ with st.sidebar:
                                   step=5, key="income_change", label_visibility="collapsed")
         st.caption(":material/info: This is a planning scenario, simulated on a copy. "
                    "Your sandbox data stays as it is.")
+        if -100 < current != 0:
+            st.button(f"Save {current:+d}% as my real income", on_click=save_what_if,
+                      type="primary", icon=":material/save:", width="stretch",
+                      help="Records a real change to your monthly income in the sandbox. "
+                           "Earlier proposals must then be made again.")
         st.button("Reset to current plan", on_click=reset_what_if, width="stretch")
+        if saved := st.session_state.pop("what_if_message", None):
+            (st.success if saved[0] else st.error)(saved[1])
 
 hypothetical = income_change != 0
 if hypothetical:
