@@ -23,7 +23,9 @@ _CSS = """
   --lav:#EFEAFD; --mint:#DDF3EA; --mint-ink:#2F8F6F; --peach:#FFE6D9; --peach-ink:#C2603A;
   --butter:#FFF3C9; --sky:#E1EEFB; --shadow:0 6px 24px rgba(110,91,214,.08); }
 [data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 1.5rem; max-width: 1300px; }
+/* Start below Streamlit's header. On Community Cloud its toolbar (Share, GitHub, ...)
+   spans the full width and would sit on top of the view tabs, swallowing clicks. */
+.block-container { padding-top: 4rem; max-width: 1300px; }
 section[data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important; }
 section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 
@@ -195,7 +197,7 @@ button, [role="button"], [role="radio"] { touch-action: manipulation; }
 }
 @media (max-width:700px) {
   /* Leave room for Streamlit's sidebar toggle above the page title. */
-  .block-container { padding-top:3rem; padding-left:1rem; padding-right:1rem; }
+  .block-container { padding-top:4rem; padding-left:1rem; padding-right:1rem; }
   .lc-page-title { font-size:27px; }
   .lc-metric { min-height:112px; }
   .lc-money { padding:20px; }
