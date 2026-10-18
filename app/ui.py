@@ -184,8 +184,22 @@ button, [role="button"], [role="radio"] { touch-action: manipulation; }
 .lc-money { animation-delay: 40ms; }
 .lc-row:nth-child(2) { animation-delay: 30ms; } .lc-row:nth-child(3) { animation-delay: 60ms; }
 .lc-row:nth-child(4) { animation-delay: 90ms; }
+/* After "Save as my real income": no second entrance. The card stays put, the new
+   number and chip fade in, and a soft lavender ring settles around the card. */
+@keyframes lc-fade { from { opacity: 0; transform: scale(0.98); } }
+@keyframes lc-ring { from { box-shadow: 0 0 0 0 rgba(110,91,214,.35), var(--shadow); }
+  to { box-shadow: 0 0 0 14px rgba(110,91,214,0), var(--shadow); } }
+.lc-money.lc-updated { animation: lc-ring 900ms var(--ease-out) both; }
+.lc-updated .lc-money-value, .lc-updated .lc-money-sub, .lc-updated .lc-chip {
+  animation: lc-fade 420ms var(--ease-out) both; transform-origin: left center; }
+.lc-updated .lc-money-sub { animation-delay: 60ms; }
+.lc-updated .lc-chip { animation-delay: 120ms; }
+/* Keep the page fully visible while Streamlit reruns, instead of dimming it. */
+[data-stale="true"] { opacity: 1 !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .lc-hello, .lc-money, .lc-row, .lc-tip { animation: none; }
+  .lc-money.lc-updated, .lc-updated .lc-money-value, .lc-updated .lc-money-sub,
+  .lc-updated .lc-chip { animation: none; }
   .stButton button, .st-key-view button { transition: background-color 150ms ease; }
   .stButton button:active, .st-key-view button:active { transform: none; }
 }
@@ -404,10 +418,14 @@ def home_greeting(name: str, subtitle: str) -> None:
 
 
 def money_card(label: str, amount: int, sub: str, chip_kind: str, chip_text: str,
-               mood: str) -> None:
-    """The one big number on the home page, with a status chip and the mascot."""
+               mood: str, *, updated: bool = False) -> None:
+    """The one big number on the home page, with a status chip and the mascot.
+
+    `updated` swaps the entrance animation for a quiet fade, for the rerun right after
+    the user saved a change.
+    """
     st.html(
-        '<div class="lc-money"><div>'
+        f'<div class="lc-money{" lc-updated" if updated else ""}"><div>'
         f'<div class="lc-money-label">{escape(label)}</div>'
         f'<div class="lc-money-value">฿{baht_text(amount)}</div>'
         f'<div class="lc-money-sub">{sub}</div>'

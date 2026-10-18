@@ -140,13 +140,13 @@ def monthly_income(state) -> int:
 def test_saving_the_what_if_records_a_real_income_change():
     home = open_view("Home")
     before = store().load_state()
-    assert not [b for b in home.button if "real income" in b.label]
+    assert button(home, "real income").disabled
 
     home.slider(key="income_change").set_value(15).run()
     assert any("Nothing is saved" in h.value for h in home.get("html"))
     button(home, "Save +15% as my real income").click().run()
     assert not home.exception
-    assert any("Monthly income is now" in s.value for s in home.success)
+    assert any("Monthly income is now" in t.value for t in home.toast)
     assert home.session_state["income_change"] == 0
 
     db = store()

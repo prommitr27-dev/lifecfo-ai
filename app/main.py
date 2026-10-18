@@ -113,9 +113,14 @@ def reset_what_if() -> None:
 def save_what_if() -> None:
     """Turn the previewed income change into a confirmed, audited sandbox change."""
     result = sandbox.confirm_income_change(st.session_state.get("income_change", 0))
-    st.session_state["what_if_message"] = (result.ok, result.message)
+    message = result.message
+    if result.ok:  # short enough to fit the toast without "view more"
+        message = (f"Saved. Monthly income is now "
+                   f"฿{ui.baht_text(result.data['monthly_income'])}. Make a new plan to match.")
+    st.session_state["what_if_message"] = (result.ok, message)
     if result.ok:
         st.session_state["income_change"] = 0
+        st.session_state["just_saved"] = True
 
 
 def cash_chart(daily: pd.DataFrame, low_on, low_value: float) -> alt.LayerChart:
@@ -189,16 +194,21 @@ with st.sidebar:
                                   step=5, key="income_change", label_visibility="collapsed")
         st.caption(":material/info: This is a planning scenario, simulated on a copy. "
                    "Your sandbox data stays as it is.")
-        if -100 < current != 0:
-            st.button(f"Save {current:+d}% as my real income", on_click=save_what_if,
-                      type="primary", icon=":material/save:", width="stretch",
-                      help="Records a real change to your monthly income in the sandbox. "
-                           "Earlier proposals must then be made again.")
+        # Always shown (disabled at 0%) so the card does not jump when it appears or goes.
+        st.button(f"Save {current:+d}% as my real income" if current else "Save as my real income",
+                  on_click=save_what_if, type="primary", icon=":material/save:",
+                  width="stretch", disabled=not -100 < current != 0, key="save-what-if",
+                  help="Records a real change to your monthly income in the sandbox. "
+                       "Earlier proposals must then be made again.")
         st.button("Reset to current plan", on_click=reset_what_if, width="stretch")
         if saved := st.session_state.pop("what_if_message", None):
-            (st.success if saved[0] else st.error)(saved[1])
+            if saved[0]:
+                st.toast(saved[1], icon=":material/check_circle:")
+            else:
+                st.error(saved[1])
 
 hypothetical = income_change != 0
+just_saved = st.session_state.pop("just_saved", False)
 if hypothetical:
     scaled = tuple(
         income.model_copy(update={"amount": income.amount * (100 + income_change) // 100})
@@ -240,7 +250,8 @@ if view == "Home":
     ui.money_card(f"Yours to spend in {ui.month_label(this_month.month)}",
                   this_month.flexible,
                   "after bills, debt payments and savings<br>" + spare,
-                  chip[0], chip[1], mood)
+                  chip[0], chip[1], mood,
+                  updated=just_saved)
     st.button("See the full plan", icon=":material/arrow_forward:", key="home-plan",
               on_click=go_to, args=("Personal CFO",), type="tertiary")
 
