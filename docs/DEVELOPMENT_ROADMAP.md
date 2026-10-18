@@ -15,13 +15,13 @@ evidence are core deliverables, not an add-on.
 | M1 | Domain model and cash flow engine | Daily forecast matches hand-calculated values | 13 Oct | Done |
 | M2 | Goal optimization, three strategies | Every plan passes the validator; identical plans are explained | 14 Oct | Done |
 | M3 | Approval, sandbox, audit, tool permission tiers | Unapproved execution refused; duplicate execution creates nothing | 14 Oct | Done |
-| M4 | ShockProof | Demo steps 4 to 5: a 20% income cut is detected as infeasible | 15 Oct | |
-| M5 | Recovery engine | Demo steps 10 to 12: 10,000 THB emergency yields three recovery plans | 15 Oct | |
+| M4 | ShockProof | Demo steps 4 to 5: a 20% income cut is detected as infeasible | 15 Oct | Done (15 Oct): demo steps 4 and 5 pass |
+| M5 | Recovery engine | Demo steps 10 to 12: 10,000 THB emergency yields three recovery plans | 15 Oct | Done (15 Oct): demo steps 10 to 12 pass |
 | M6 | Rewards engine | No duplicate XP; protected streak follows the rules; opt-out records nothing | 16 Oct | Done (15 Oct) |
 | M7 | End-to-end deterministic demo | The 15-step demo runs from one script without an LLM; operation log exported | 16 Oct | Done (15 Oct) |
 | M8 | AI CFO agent | Provider layer, read and compute tools, offline agent, and chat view are done (14 Oct). Remaining: propose and execute tools after M3, live test on a free provider, wider injection test set | 17 Oct | Partly done |
 | M9 | Evaluation | 30 to 50 seeded scenarios; baseline comparison documented (`scripts/run_evaluation.py`, [results](testing/EVALUATION_RESULTS.md)) | 18 Oct | Done (15 Oct) |
-| M10 | Submission package | Technical docs, deck, demo video, security self-assessment, execution evidence | 19 Oct | |
+| M10 | Submission package | Technical docs, deck, demo video, security self-assessment, execution evidence | 19 Oct | In progress: security self-assessment and execution evidence written; deck and video not started |
 | | Buffer and submit | Final check against the submission checklist | 20 Oct | |
 
 ## Scope adjustments after reading the rules
