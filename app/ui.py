@@ -113,7 +113,8 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
 .lc-table th:first-child, .lc-table td:first-child { text-align:left; }
 .lc-table td { padding:9px 11px; border-bottom:1px solid #EEF2F6; text-align:right; color:#334155; }
 .lc-table td:first-child { font-weight:600; color:var(--ink); }
-.lc-table td:last-child { font-weight:600; color:var(--navy); }
+/* Closing cash is the first amount column. */
+.lc-table td:nth-child(2) { font-weight:600; color:var(--navy); }
 .lc-table tr:last-child td { border-bottom:0; }
 .lc-mini { font-size:11px; color:var(--muted); text-align:right; padding-top:4px; }
 @media (max-width:1100px) {
@@ -123,7 +124,8 @@ section[data-testid="stSidebar"] > div { padding-top: 0.6rem; }
   }
 }
 @media (max-width:700px) {
-  .block-container { padding-left:1rem; padding-right:1rem; }
+  /* Leave room for Streamlit's sidebar toggle above the page title. */
+  .block-container { padding-top:3rem; padding-left:1rem; padding-right:1rem; }
   .lc-page-title { font-size:27px; }
   .lc-metric { min-height:112px; }
 }
