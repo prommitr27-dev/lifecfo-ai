@@ -3,8 +3,9 @@
 Views: a calm home page (money to spend, bills due, key goals), daily cash flow forecast,
 Personal CFO plan comparison, AI CFO chat, and
 the Sandbox where the user approves plans and the audit log is shown. State is
-kept in a local SQLite sandbox. The what-if control works on a copy and never
-changes stored data. The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
+kept in a local SQLite sandbox. The sidebar income what-if previews a change inside
+its own card and leaves the page alone; only "Save as my real income" changes data.
+The chat works with no LLM at all; see docs/AI_PROVIDERS.md.
 """
 
 import json
@@ -27,7 +28,7 @@ from lifecfo.cashflow import (
 )
 from lifecfo.database import Store
 from lifecfo.domain.loader import load_state
-from lifecfo.domain.models import FinancialState
+from lifecfo.domain.models import FinancialState, Frequency
 from lifecfo.domain.money import SATANG_PER_THB, format_thb, thb
 from lifecfo.llm import LLMSettings, load_env_file
 from lifecfo.optimization import PlanningResult, PlanningStatus, generate_plans
@@ -121,6 +122,56 @@ def save_what_if() -> None:
     if result.ok:
         st.session_state["income_change"] = 0
         st.session_state["just_saved"] = True
+        # The slider lives in a fragment, which reruns on its own. Ask for one full
+        # rerun so the rest of the page picks up the saved income.
+        st.session_state["rerun_app"] = True
+
+
+def with_income_change(base: FinancialState, percent: int) -> FinancialState:
+    """The state as it would be after saving `percent`: same rule as confirm_income_change."""
+    incomes = tuple(
+        i.model_copy(update={"amount": round(i.amount * (100 + percent) / 100)})
+        if i.frequency is Frequency.MONTHLY else i
+        for i in base.incomes)
+    return base.model_copy(update={"incomes": tuple(i for i in incomes if i.amount > 0)})
+
+
+@st.fragment
+def what_if_card() -> None:
+    """Income what-if in the sidebar.
+
+    A fragment: dragging the slider reruns only this card, so the page behind it stays
+    exactly as it is. The preview lives in the card; the page changes after a save.
+    """
+    if st.session_state.pop("rerun_app", False):
+        st.rerun(scope="app")
+    with st.container(border=True):
+        ui.card_head("What-if income changes?",
+                     "Try a change here. The page stays as it is until you save.")
+        current = st.session_state.get("income_change", 0)
+        st.html(f'<div class="lc-big">{current:+d}%</div>'
+                '<div class="lc-unit">change to monthly income</div>' if current else
+                '<div class="lc-big">0%</div><div class="lc-unit">no change</div>')
+        st.slider("Income change (%)", min_value=-100, max_value=50, value=0, step=5,
+                  key="income_change", label_visibility="collapsed")
+        if current:
+            preview = with_income_change(sandbox.state, current)
+            forecast = forecast_cash_flow(preview, 92)
+            report = check_feasibility(preview, 92, planned=forecast)
+            this_month = monthly_summary(forecast)[0]
+            ui.what_if_preview(this_month.flexible, report.min_unallocated)
+        # Always shown (disabled at 0%) so the card does not jump when it appears or goes.
+        st.button(f"Save {current:+d}% as my real income" if current else "Save as my real income",
+                  on_click=save_what_if, type="primary", icon=":material/save:",
+                  width="stretch", disabled=not -100 < current != 0, key="save-what-if",
+                  help="Records a real change to your monthly income in the sandbox. "
+                       "Earlier proposals must then be made again.")
+        st.button("Reset", on_click=reset_what_if, width="stretch")
+        if saved := st.session_state.pop("what_if_message", None):
+            if saved[0]:
+                st.toast(saved[1], icon=":material/check_circle:")
+            else:
+                st.error(saved[1])
 
 
 def cash_chart(daily: pd.DataFrame, low_on, low_value: float) -> alt.LayerChart:
@@ -183,38 +234,9 @@ state = sandbox.state
 
 with st.sidebar:
     ui.sidebar_brand(state.as_of, "Synthetic data")
-    with st.container(border=True):
-        ui.card_head("What-if income changes?",
-                     "Preview how a change to every income may affect your plan.")
-        current = st.session_state.get("income_change", 0)
-        st.html(f'<div class="lc-big">{current:+d}%</div>'
-                '<div class="lc-unit">change to income</div>' if current else
-                '<div class="lc-big">0%</div><div class="lc-unit">no change</div>')
-        income_change = st.slider("Income change (%)", min_value=-100, max_value=50, value=0,
-                                  step=5, key="income_change", label_visibility="collapsed")
-        st.caption(":material/info: This is a planning scenario, simulated on a copy. "
-                   "Your sandbox data stays as it is.")
-        # Always shown (disabled at 0%) so the card does not jump when it appears or goes.
-        st.button(f"Save {current:+d}% as my real income" if current else "Save as my real income",
-                  on_click=save_what_if, type="primary", icon=":material/save:",
-                  width="stretch", disabled=not -100 < current != 0, key="save-what-if",
-                  help="Records a real change to your monthly income in the sandbox. "
-                       "Earlier proposals must then be made again.")
-        st.button("Reset to current plan", on_click=reset_what_if, width="stretch")
-        if saved := st.session_state.pop("what_if_message", None):
-            if saved[0]:
-                st.toast(saved[1], icon=":material/check_circle:")
-            else:
-                st.error(saved[1])
+    what_if_card()
 
-hypothetical = income_change != 0
 just_saved = st.session_state.pop("just_saved", False)
-if hypothetical:
-    scaled = tuple(
-        income.model_copy(update={"amount": income.amount * (100 + income_change) // 100})
-        for income in state.incomes
-    )
-    state = state.model_copy(update={"incomes": tuple(i for i in scaled if i.amount > 0)})
 
 shown = st.session_state.get("view") or VIEWS[0]
 if shown != "Home":
@@ -230,9 +252,7 @@ if view == "Home":
     report = check_feasibility(state, 92, planned=forecast)
     this_month = monthly_summary(forecast)[0]
 
-    if hypothetical:
-        chip = ("info", f"What-if preview: income {income_change:+d}%. Nothing is saved.")
-    elif report.status is FeasibilityStatus.FEASIBLE:
+    if report.status is FeasibilityStatus.FEASIBLE:
         chip = ("ok", "✓ Your plan is funded every day for the next 92 days")
     elif report.status is FeasibilityStatus.PLAN_INFEASIBLE:
         chip = ("warn", f"Plan runs short from {ui.short_date(report.first_shortfall_on)}. "
@@ -417,7 +437,7 @@ elif view == "AI CFO chat":
         with st.chat_message("assistant"):
             past = [(e["role"], e["text"] if e["role"] == "user" else e["reply"].text)
                     for e in history[:-1]]
-            context = AgentContext(state, None if hypothetical else sandbox)
+            context = AgentContext(state, sandbox)
             reply = agent.reply(context, prompt, past)
             show_reply(reply)
         history.append({"role": "assistant", "reply": reply})
@@ -690,10 +710,7 @@ else:
                      alt=f"Monthly allocations for the {plan.label} plan in baht")
         st.caption("Savings are swept on the last day of each month. A plan is only a "
                    "proposal until you approve it in the Sandbox view.")
-        if hypothetical:
-            st.info("This is a what-if view. Set the income change back to 0 to propose a plan "
-                    "for your actual sandbox state.")
-        elif st.button(f"Request approval for the {plan.label} plan",
+        if st.button(f"Request approval for the {plan.label} plan",
                        icon=":material/assignment_turned_in:"):
             outcome = sandbox.propose(plan, "USER")
             (st.success if outcome.ok else st.error)(

@@ -37,9 +37,17 @@ def test_app_renders_baseline_as_feasible():
     assert any("FEASIBLE" in s.value for s in at.success)
 
 
+def save_income_change(at, percent: int) -> None:
+    at.sidebar.slider[0].set_value(percent).run()
+    next(b for b in at.button if "real income" in b.label).click().run()
+
+
 def test_app_flags_income_cut_as_infeasible():
     at = run_app("Cash flow")
     at.sidebar.slider[0].set_value(-20).run()
+    assert not at.exception
+    assert not any("PLAN_INFEASIBLE" in w.value for w in at.warning)  # not saved yet
+    save_income_change(at, -20)
     assert not at.exception
     assert any("PLAN_INFEASIBLE" in w.value for w in at.warning)
 
@@ -54,7 +62,7 @@ def test_personal_cfo_view_shows_three_validated_plans():
 
 def test_personal_cfo_view_reports_essential_shortfall_without_a_plan():
     at = run_app("Personal CFO")
-    at.sidebar.slider[0].set_value(-50).run()
+    save_income_change(at, -50)
     assert not at.exception
     assert any("ESSENTIAL_SHORTFALL" in e.value for e in at.error)
     assert len(at.dataframe) == 0
