@@ -28,10 +28,10 @@ submitting.
 
 | # | Item | Requirement | Where it will live | State |
 |---|---|---|---|---|
-| 1 | Technical documentation | System architecture, core algorithm description, security design | `docs/architecture`, `docs/financial_model`, `docs/SECURITY_DESIGN.md` | Architecture, financial model, and security design written for M0 to M3 |
+| 1 | Technical documentation | System architecture, core algorithm description, security design | `docs/architecture`, `docs/financial_model`, `docs/SECURITY_DESIGN.md`, `docs/SHOCKPROOF_DESIGN.md`, `docs/RECOVERY_ENGINE.md` | Architecture, financial model, and security design written for M0 to M3; ShockProof and recovery design drafted for Members 3 and 2 to review |
 | 2 | Presentation deck | Final presentation of at most 10 minutes | `docs/competition/` | Not started |
 | 3 | Demo video | Optional, at most 5 minutes | Link in README | Not started |
-| 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | In progress; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md` |
+| 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | In progress; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md`; test plan drafted in `docs/testing/TESTING_PLAN.md` and competitor analysis in `docs/COMPETITOR_ANALYSIS.md`, both for Member 3 to review |
 | 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Draft written; for Member 3 to review |
 | 6 | Execution evidence | Simulated-account or sandbox operation logs and demo video | `docs/competition/evidence/` | 15-step demo report and log (`scripts/demo_15_steps.py`), chat transcript and sandbox operation log (`scripts/demo_offline.py`); demo video not started |
 
