@@ -97,5 +97,4 @@ docs/                Architecture, financial model, roadmap, competition checkli
 - [Manual scenario validation](docs/testing/MANUAL_SCENARIOS.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Team tasks and interfaces](docs/TEAM_TASKS.md)
-- Team guides (Thai): [Member 1, code](docs/team/MEMBER_1_GUIDE.md), [Member 2](docs/team/MEMBER_2_GUIDE.md), [Member 3](docs/team/MEMBER_3_GUIDE.md)
 - [Submission checklist](docs/competition/SUBMISSION_CHECKLIST.md)
