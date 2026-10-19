@@ -8,7 +8,7 @@ Run all of them:
 
 ```bash
 uv sync
-uv run pytest              # 293 tests, about a minute
+uv run pytest              # 298 tests, about a minute
 ```
 
 Run one case by its test name, for example:

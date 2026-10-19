@@ -1,0 +1,241 @@
+{
+  "chain_intact": true,
+  "entries": [
+    {
+      "seq": 1,
+      "ts": "2026-10-19T19:34:19+00:00",
+      "actor": "SYSTEM",
+      "action": "SANDBOX_RESET",
+      "payload": {
+        "as_of": "2026-11-01",
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954"
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "6db9b390047060d36a66f4e1eb957c6a7db8881f801bfe1926a84ff01b8a30b5"
+    },
+    {
+      "seq": 2,
+      "ts": "2026-10-19T19:34:25+00:00",
+      "actor": "USER",
+      "action": "PLAN_PROPOSED",
+      "payload": {
+        "plan_hash": "0d1de2471c2d904485bd189082a0e2158214743c97c7946f5c436ea18d4afa6e",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954",
+        "strategy": "BALANCED"
+      },
+      "prev_hash": "6db9b390047060d36a66f4e1eb957c6a7db8881f801bfe1926a84ff01b8a30b5",
+      "hash": "22f89d68cab4324dc2c2e314300e32ab27c16df0f0abdce24146ebe2a1902bb9"
+    },
+    {
+      "seq": 3,
+      "ts": "2026-10-19T19:34:28+00:00",
+      "actor": "USER",
+      "action": "PLAN_APPROVED",
+      "payload": {
+        "approval_id": "apr-0e75f653b8",
+        "plan_hash": "0d1de2471c2d904485bd189082a0e2158214743c97c7946f5c436ea18d4afa6e",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954"
+      },
+      "prev_hash": "22f89d68cab4324dc2c2e314300e32ab27c16df0f0abdce24146ebe2a1902bb9",
+      "hash": "ddd8b508fb37145fe313e2dbb0b57d81b7a421721d1652ae1a1ee72ad021b35a"
+    },
+    {
+      "seq": 4,
+      "ts": "2026-10-19T19:34:29+00:00",
+      "actor": "USER",
+      "action": "PLAN_EXECUTED",
+      "payload": {
+        "approval_id": "apr-0e75f653b8",
+        "plan_id": "plan-0d1de2471c",
+        "state_hash_after": "b54416ab85e30c0060859a837b56cc01ff0f070283aa24690f33db32296e18d3",
+        "state_hash_before": "ba939064f118f2a902c99c3b478982597244249b55207e5a29f77b994ff56954",
+        "strategy": "BALANCED"
+      },
+      "prev_hash": "ddd8b508fb37145fe313e2dbb0b57d81b7a421721d1652ae1a1ee72ad021b35a",
+      "hash": "f57e58eb274d32ccf5495fc24093bab93f55af6c1b317734dbc884c9bf54fc22"
+    },
+    {
+      "seq": 5,
+      "ts": "2026-10-19T19:34:31+00:00",
+      "actor": "USER",
+      "action": "INCOME_CHANGE_CONFIRMED",
+      "payload": {
+        "monthly_after": 2400000,
+        "monthly_before": 3000000,
+        "percent": -20,
+        "state_hash_after": "f4cdbe59b8c8312f40b59f77b84eb72731f52f71618d19023eebd6fb634b46c5",
+        "state_hash_before": "b54416ab85e30c0060859a837b56cc01ff0f070283aa24690f33db32296e18d3"
+      },
+      "prev_hash": "f57e58eb274d32ccf5495fc24093bab93f55af6c1b317734dbc884c9bf54fc22",
+      "hash": "809ab7637c922090b05a116a11c1ad3dca24250a473245cf6482659d5f53e8e3"
+    },
+    {
+      "seq": 6,
+      "ts": "2026-10-19T19:34:34+00:00",
+      "actor": "USER",
+      "action": "PLAN_PROPOSED",
+      "payload": {
+        "plan_hash": "838e08283e2ad6723e6ab8084adb64de97aee888c51ccc4a4b3d4fc9efc4d7aa",
+        "plan_id": "plan-838e08283e",
+        "state_hash": "f4cdbe59b8c8312f40b59f77b84eb72731f52f71618d19023eebd6fb634b46c5",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "809ab7637c922090b05a116a11c1ad3dca24250a473245cf6482659d5f53e8e3",
+      "hash": "5f45df7558032f78fa93e448f1d84f1364f71da02a4df692d63f9337e2efa8f9"
+    },
+    {
+      "seq": 7,
+      "ts": "2026-10-19T19:34:38+00:00",
+      "actor": "USER",
+      "action": "PLAN_APPROVED",
+      "payload": {
+        "approval_id": "apr-e52dc45242",
+        "plan_hash": "838e08283e2ad6723e6ab8084adb64de97aee888c51ccc4a4b3d4fc9efc4d7aa",
+        "plan_id": "plan-838e08283e",
+        "state_hash": "f4cdbe59b8c8312f40b59f77b84eb72731f52f71618d19023eebd6fb634b46c5"
+      },
+      "prev_hash": "5f45df7558032f78fa93e448f1d84f1364f71da02a4df692d63f9337e2efa8f9",
+      "hash": "f80bafe468d28b6feccf7b23cc842f9dc2b42b19c85ee0b0c8011e8057766df5"
+    },
+    {
+      "seq": 8,
+      "ts": "2026-10-19T19:34:39+00:00",
+      "actor": "USER",
+      "action": "PLAN_EXECUTED",
+      "payload": {
+        "approval_id": "apr-e52dc45242",
+        "plan_id": "plan-838e08283e",
+        "state_hash_after": "c624d753f4e43289a3140f44446cdc43e2798cb34ce0a8296cdb706dea2e2a25",
+        "state_hash_before": "f4cdbe59b8c8312f40b59f77b84eb72731f52f71618d19023eebd6fb634b46c5",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "f80bafe468d28b6feccf7b23cc842f9dc2b42b19c85ee0b0c8011e8057766df5",
+      "hash": "f0d0a6a46fe893f3e173d1df1800a4aea96c316002d73256564a698397eeba73"
+    },
+    {
+      "seq": 9,
+      "ts": "2026-10-19T19:34:48+00:00",
+      "actor": "USER",
+      "action": "SHOCK_CONFIRMED",
+      "payload": {
+        "amount": 1000000,
+        "due_on": "2026-11-12",
+        "shock_id": "shock-1",
+        "state_hash_after": "ce1efa1e5a3d038502d57594233cfb3be545ad6995ffda22ef588374899d6a5b",
+        "state_hash_before": "c624d753f4e43289a3140f44446cdc43e2798cb34ce0a8296cdb706dea2e2a25"
+      },
+      "prev_hash": "f0d0a6a46fe893f3e173d1df1800a4aea96c316002d73256564a698397eeba73",
+      "hash": "15d3a66b3645d39dea27236497a3693471f677fafae50cd440cd832c4375eaf2"
+    },
+    {
+      "seq": 10,
+      "ts": "2026-10-19T19:34:55+00:00",
+      "actor": "USER",
+      "action": "RESERVE_WITHDRAWN",
+      "payload": {
+        "amount": 600000,
+        "gap_after": 5400000,
+        "reserve_after": 0,
+        "state_hash_after": "4823d5e607fc4338f3f8a6aa8856b6d4952a50e2921acee1b56714ec856e3c15",
+        "state_hash_before": "ce1efa1e5a3d038502d57594233cfb3be545ad6995ffda22ef588374899d6a5b"
+      },
+      "prev_hash": "15d3a66b3645d39dea27236497a3693471f677fafae50cd440cd832c4375eaf2",
+      "hash": "6d36a12967d82745b5faa07d01242cd2068b04f3b0dc732d72888364891e314a"
+    },
+    {
+      "seq": 11,
+      "ts": "2026-10-19T19:34:58+00:00",
+      "actor": "USER",
+      "action": "PLAN_PROPOSED",
+      "payload": {
+        "plan_hash": "18b4c7212ce31af72d29b91e62a2f223c61603f3e0f3ef318901be1b79642f7e",
+        "plan_id": "plan-18b4c7212c",
+        "state_hash": "4823d5e607fc4338f3f8a6aa8856b6d4952a50e2921acee1b56714ec856e3c15",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "6d36a12967d82745b5faa07d01242cd2068b04f3b0dc732d72888364891e314a",
+      "hash": "e3da969c39f65c22b5178bd9c2ad483d140f8c96cf49159caa4e8716d41c9f57"
+    },
+    {
+      "seq": 12,
+      "ts": "2026-10-19T19:35:02+00:00",
+      "actor": "USER",
+      "action": "PLAN_APPROVED",
+      "payload": {
+        "approval_id": "apr-7ab3a84f7e",
+        "plan_hash": "18b4c7212ce31af72d29b91e62a2f223c61603f3e0f3ef318901be1b79642f7e",
+        "plan_id": "plan-18b4c7212c",
+        "state_hash": "4823d5e607fc4338f3f8a6aa8856b6d4952a50e2921acee1b56714ec856e3c15"
+      },
+      "prev_hash": "e3da969c39f65c22b5178bd9c2ad483d140f8c96cf49159caa4e8716d41c9f57",
+      "hash": "6ad86a149091d09db9ea6bc0e6250f7876a80e6a339bcc925de28e71602f801d"
+    },
+    {
+      "seq": 13,
+      "ts": "2026-10-19T19:35:03+00:00",
+      "actor": "USER",
+      "action": "PLAN_EXECUTED",
+      "payload": {
+        "approval_id": "apr-7ab3a84f7e",
+        "plan_id": "plan-18b4c7212c",
+        "state_hash_after": "485becbccf8d969101ecfe8ebf88283e216077b830d4af233456814313f39f28",
+        "state_hash_before": "4823d5e607fc4338f3f8a6aa8856b6d4952a50e2921acee1b56714ec856e3c15",
+        "strategy": "SAFETY_FIRST"
+      },
+      "prev_hash": "6ad86a149091d09db9ea6bc0e6250f7876a80e6a339bcc925de28e71602f801d",
+      "hash": "0c57118238d7d9631a3beedae12e57b8e5ed7fa51c13df5d6d8cdeeafa5e6da0"
+    }
+  ],
+  "transactions": [
+    {
+      "id": 1,
+      "idempotency_key": "execute:apr-0e75f653b8",
+      "kind": "PLAN_ACTIVATION",
+      "ref": "plan-0d1de2471c",
+      "from_envelope": null,
+      "to_envelope": null,
+      "amount": 0,
+      "effective_on": "2026-11-01",
+      "plan_id": "plan-0d1de2471c",
+      "created_at": "2026-10-19T19:34:29+00:00"
+    },
+    {
+      "id": 2,
+      "idempotency_key": "execute:apr-e52dc45242",
+      "kind": "PLAN_ACTIVATION",
+      "ref": "plan-838e08283e",
+      "from_envelope": null,
+      "to_envelope": null,
+      "amount": 0,
+      "effective_on": "2026-11-01",
+      "plan_id": "plan-838e08283e",
+      "created_at": "2026-10-19T19:34:39+00:00"
+    },
+    {
+      "id": 3,
+      "idempotency_key": "withdraw:2026-10-19T19:34:55+00:00:600000",
+      "kind": "RESERVE_WITHDRAWAL",
+      "ref": "emergency",
+      "from_envelope": "emergency",
+      "to_envelope": "unallocated",
+      "amount": 600000,
+      "effective_on": "2026-11-01",
+      "plan_id": null,
+      "created_at": "2026-10-19T19:34:55+00:00"
+    },
+    {
+      "id": 4,
+      "idempotency_key": "execute:apr-7ab3a84f7e",
+      "kind": "PLAN_ACTIVATION",
+      "ref": "plan-18b4c7212c",
+      "from_envelope": null,
+      "to_envelope": null,
+      "amount": 0,
+      "effective_on": "2026-11-01",
+      "plan_id": "plan-18b4c7212c",
+      "created_at": "2026-10-19T19:35:03+00:00"
+    }
+  ]
+}

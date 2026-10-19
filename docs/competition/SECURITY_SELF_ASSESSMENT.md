@@ -22,7 +22,7 @@ demo.
   is no bank connection, no credential handling, and no real transaction
   anywhere in the code.
 - Each control below is enforced in code and demonstrated by an automated test.
-  The full suite (293 tests) runs in CI on Python 3.12 and 3.14 with no LLM and
+  The full suite (298 tests) runs in CI on Python 3.12 and 3.14 with no LLM and
   no network.
 
 ## 2. Permission-tier implementation

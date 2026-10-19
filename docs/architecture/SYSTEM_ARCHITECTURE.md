@@ -1,7 +1,9 @@
 # System Architecture
 
 Status: approved 2026-10-13. Sections marked *(planned)* describe milestones
-that are not implemented yet; see the roadmap for the current state.
+that are not implemented yet; see the roadmap for the current state. For the
+system as built at submission, see
+[TECHNICAL_DOCUMENTATION.md](../competition/TECHNICAL_DOCUMENTATION.md).
 
 ## 1. Principles
 

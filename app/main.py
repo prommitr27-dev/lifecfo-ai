@@ -55,6 +55,21 @@ def setting(name: str) -> str:
 # in-memory sandbox that disappears with their browser session, so one visitor's
 # approvals or reset never show up for another.
 PER_VISITOR = setting("LIFECFO_SANDBOX").strip().lower() == "session"
+# Shown in the chat view so reviewers know the LLM mode exists and why it is off here.
+OFFLINE_REASONS = """\
+LifeCFO can use an LLM through an API (Groq, Gemini, a local Ollama model, or any
+OpenAI-compatible endpoint) by setting `LIFECFO_LLM_PROVIDER` and a key, with no code
+change. The model then reads your question, picks the tool, and words the answer; every
+figure still comes from the engines and is checked against the tool results. This demo
+runs offline on purpose:
+
+- **Free and keyless.** Anyone can clone and run it; the team has no paid API budget.
+- **Reproducible.** Tests and execution evidence give the same output on every run.
+- **Reliable.** Free LLM tiers hit rate limits after a few questions a minute.
+- **Safe.** Nothing leaves your device, and no model can word a result wrongly.
+
+See `docs/AI_PROVIDERS.md` for the providers and live test results.
+"""
 VIEWS = ["Home", "Cash flow", "Personal CFO", "AI CFO chat", "Rewards", "Sandbox"]
 SUBTITLES = {
     "Home": "Only what matters today. Details live in the other tabs.",
@@ -420,6 +435,8 @@ elif view == "AI CFO chat":
         )
     else:
         st.caption("Offline mode: no LLM and no network. Answers are built from engine results.")
+        with st.expander("Why offline? An LLM can be switched on"):
+            st.markdown(OFFLINE_REASONS)
 
     history = st.session_state.setdefault("chat", [])
     for entry in history:
