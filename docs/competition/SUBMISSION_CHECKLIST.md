@@ -30,9 +30,9 @@ submitting.
 |---|---|---|---|---|
 | 1 | Technical documentation | System architecture, core algorithm description, security design | `docs/architecture`, `docs/financial_model`, `docs/SECURITY_DESIGN.md`, `docs/SHOCKPROOF_DESIGN.md`, `docs/RECOVERY_ENGINE.md` | Architecture, financial model, and security design written for M0 to M3; ShockProof and recovery design drafted for Members 3 and 2 to review |
 | 2 | Presentation deck | Final presentation of at most 10 minutes | `docs/competition/` | Not started |
-| 3 | Demo video | Optional, at most 5 minutes | Link in README | Not started |
-| 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | In progress; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md`; test plan drafted in `docs/testing/TESTING_PLAN.md` and competitor analysis in `docs/COMPETITOR_ANALYSIS.md`, both for Member 3 to review |
-| 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Draft written; for Member 3 to review |
+| 3 | Demo video | Optional, at most 5 minutes | Link in README | Recorded on 19 October 2026 on the current app (4:49, all 15 steps of `docs/competition/evidence/demo_15_steps.md`, English captions); to be uploaded and linked |
+| 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | README with live demo link, deployment table and settings; key test cases with inputs and expected results in `docs/testing/TEST_CASES.md`; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md`; test plan drafted in `docs/testing/TESTING_PLAN.md` and competitor analysis in `docs/COMPETITOR_ANALYSIS.md`, both for Member 3 to review |
+| 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Updated 19 October 2026 for the public demo, with focus areas (financial data, user access, wrong advice) and 14 known risks; for Member 3 to review |
 | 6 | Execution evidence | Simulated-account or sandbox operation logs and demo video | `docs/competition/evidence/` | 15-step demo report and log (`scripts/demo_15_steps.py`), chat transcript and sandbox operation log (`scripts/demo_offline.py`); demo video not started |
 
 ## Before submitting

@@ -1,12 +1,14 @@
 # Security Self-Assessment
 
 Project: LifeCFO AI (FinTechathon 2026, International Track, Topic A).
-Assessed version: `main` on 18 October 2026. Assessed by the team; this is a
+Assessed version: `main` on 19 October 2026, including the public web demo at
+https://lifecfo-ai.streamlit.app/. Assessed by the team; this is a
 self-assessment, not an external audit.
 
 Detailed design, with the test for every control, is in
 [`docs/SECURITY_DESIGN.md`](../SECURITY_DESIGN.md). This report summarises it
-for reviewers and adds the HTTP API used by the mobile app.
+for reviewers and adds the HTTP API used by the mobile app and the public web
+demo.
 
 ## 1. Summary
 
@@ -20,7 +22,7 @@ for reviewers and adds the HTTP API used by the mobile app.
   is no bank connection, no credential handling, and no real transaction
   anywhere in the code.
 - Each control below is enforced in code and demonstrated by an automated test.
-  The full suite (288 tests) runs in CI on Python 3.12 and 3.14 with no LLM and
+  The full suite (293 tests) runs in CI on Python 3.12 and 3.14 with no LLM and
   no network.
 
 ## 2. Permission-tier implementation
@@ -73,6 +75,8 @@ The path from a request to a change in the sandbox:
 | A1 | Mobile client sends its own plan | The API never accepts a plan from the client; it regenerates it from stored state | `test_client_cannot_send_its_own_plan_or_approve_without_a_proposal` |
 | A2 | Chat via API approves | The API chat agent runs as `AGENT` | `test_chat_agent_cannot_approve` |
 | A3 | Unauthenticated API access | If `LIFECFO_API_TOKEN` is set, every endpoint except `/health` needs the bearer token, compared in constant time | `test_token_is_required_when_configured` |
+| W1 | One visitor of the public demo sees or changes another's data | With `LIFECFO_SANDBOX = "session"` each browser session gets its own in-memory sandbox; nothing is written to disk and it is gone when the session ends | `test_public_mode_gives_each_visitor_a_private_sandbox` |
+| W2 | Moving the what-if slider changes data | The slider previews on a copy; only "Save as my real income" records a change, through the same user-only path as S15 | `test_moving_the_what_if_slider_leaves_the_page_alone`, `test_saving_the_what_if_records_a_real_income_change` |
 
 The full list (S1 to S16) is in `docs/SECURITY_DESIGN.md`, section 3.
 
@@ -95,7 +99,44 @@ and rate-limit. Their safety layers are covered by unit tests with a scripted
 model, and live checks on GroqCloud and Gemini are recorded in
 `docs/AI_PROVIDERS.md`.
 
-## 5. Data handling and compliance
+## 5. Focus areas
+
+How the system handles the three areas the brief asks teams to consider.
+
+**Protecting financial data.**
+- Only synthetic profiles exist anywhere in the system; there is no bank
+  connection, no account number, and no credential to protect.
+- Money moves only inside the sandbox ledger, through `SandboxService`, the one
+  code path that changes state (S1 to S4, S15).
+- History is append-only and hash-chained, so a changed or deleted entry is
+  detected (S7). It is tamper-evident, not tamper-proof (R3).
+- API keys live in `.env` or Streamlit secrets, never in the repository, and
+  never appear in error text (S12). The public repository's history was scanned
+  for secrets before it was made public on 18 October 2026.
+
+**Access to user data.**
+- The AI agent sees data only through tools, each with a tier (section 2). It
+  can read and compute, propose at most, and never approve.
+- The public demo isolates every visitor in a private, temporary sandbox (W1).
+  There is no sign-in, so a visitor is "the user" of their own sandbox only (R2).
+- The API used by the mobile app needs a bearer token whenever one is set (A3);
+  without it, anyone on the network can act (R9).
+- With an LLM enabled, the question and tool results go to the chosen provider
+  (section 6). The public demo runs with no LLM, so nothing leaves the server.
+
+**Risk of wrong advice.**
+- Every number comes from deterministic engines, and an answer with a figure no
+  tool produced is discarded (S8).
+- Every plan passes `validate_plan` and a daily cash check before the user sees
+  it, and again before execution (S4). When no safe plan exists, none is offered
+  (S13).
+- Nothing changes until the user approves; the agent cannot approve (S1).
+- Assumptions are shown with each result (month-end savings sweep, essentials as
+  monthly lump sums, draft strategy weights). Residual risks are R1, R4 and R12.
+- The system plans cash flow, reserves, debt and goals only; it gives no
+  investment advice.
+
+## 6. Data handling and compliance
 
 - Synthetic profiles only, in development, tests, demos, and evaluation.
 - Default mode is offline: nothing leaves the machine.
@@ -107,12 +148,12 @@ model, and live checks on GroqCloud and Gemini are recorded in
 - Responsible gamification: rewards are opt-in, opt-out records nothing, and
   streaks are protected rather than broken during a confirmed shock.
 
-## 6. Known risks
+## 7. Known risks
 
 | # | Risk | Severity in the MVP | Status and mitigation |
 |---|---|---|---|
 | R1 | The number check catches invented figures, not wrong statements with correct figures | Medium | Observed once in live testing; a prompt rule reduces it. Offline mode is unaffected |
-| R2 | Single user, no sign-in in the Streamlit app; anyone who opens it acts as the user | Medium | Accepted for a local demo. A deployment needs authentication before Approve means anything |
+| R2 | No sign-in in the web app; anyone who opens it acts as the user | Medium | On the public demo each visitor only reaches a private, temporary sandbox (W1). A deployment with real users needs authentication before Approve means anything |
 | R3 | Audit log is tamper-evident, not tamper-proof; someone with write access to the database could rebuild the chain | Low | Accepted. Anchoring the latest hash externally would close it |
 | R4 | Offline router matches keywords and can pick the wrong read-only tool | Low | It cannot exceed its tier, and execution still needs approval |
 | R5 | Free LLM tiers may log or train on prompts | Low | Only synthetic data is sent; documented per provider |
@@ -122,12 +163,16 @@ model, and live checks on GroqCloud and Gemini are recorded in
 | R9 | The API token is optional; without it any client on the network can approve and execute in the sandbox | Medium | `mobile/README.md` says to set `LIFECFO_API_TOKEN` whenever the API is reachable by others. Required for any shared deployment |
 | R10 | The API allows any CORS origin | Low | Needed for Expo web and LAN devices; the token is the guard when set |
 | R11 | No rate limiting on the API or chat | Low | Single-user demo server; a deployment would add it |
+| R12 | A plan can be valid yet unsuitable because the model's assumptions are wrong for the person (draft strategy weights, risk thresholds not yet set, savings swept at month end, bills as monthly lump sums) | Medium | Assumptions are labelled in every result; the user compares three plans and must approve one; risk indicators are shown without ratings until thresholds are set |
+| R13 | The public demo can be overloaded; Streamlit Community Cloud gives limited resources and no rate limit | Low | Synthetic data only; an overloaded app restarts with a fresh sandbox |
+| R14 | If an LLM key is added to the public demo's secrets, anyone with the link can spend its quota | Low | The public demo runs without a key. `docs/DEPLOY_STREAMLIT_CLOUD.md` warns about this and recommends a free-tier key with a limit |
 
-## 7. How to reproduce
+## 8. How to reproduce
 
 ```bash
 uv sync
 uv run pytest                              # all controls above
+uv run pytest -k "sandbox or agent or api"  # the permission and approval controls only
 uv run python scripts/run_evaluation.py    # injection and routing results
 uv run python scripts/demo_15_steps.py     # sandbox operation log with audit chain
 ```
