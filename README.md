@@ -24,6 +24,7 @@ investment advice.
 - **Live demo:** https://lifecfo-ai.streamlit.app/ (public, synthetic data,
   offline AI engine). Every visitor gets a private sandbox that disappears when
   the browser session ends. If the app is asleep, click the button to wake it.
+- **Demo video (4:57):** https://youtu.be/wJTIE0QwGYI, the brief's 15-step flow with English captions.
 - **Run it locally:** see [Quick start](#quick-start) below.
 - **Test cases:** [docs/testing/TEST_CASES.md](docs/testing/TEST_CASES.md).
 
