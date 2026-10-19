@@ -41,8 +41,9 @@ investment advice.
 | M6 | Rewards: XP, levels, badges, daily and weekly streaks with grace, pause, and shock protection, adaptive recovery missions, opt-out, Rewards view; confirmed expenses and reserve withdrawals in the sandbox | Done |
 | M7 | The brief's 15-step demo end to end with a check per step (`scripts/demo_15_steps.py`, all 15 pass) | Done |
 | M9 | Evaluation: 40 seeded scenarios against three baselines, plus 20 routing and 10 injection prompts for the agent ([results](docs/testing/EVALUATION_RESULTS.md), regenerate with `uv run python scripts/run_evaluation.py`) | Done |
-| M10 | Submission package: security self-assessment, licences, public demo, test cases, demo video | In progress |
-| M6 to M10 | See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Planned |
+| M10 | Submission package: technical documentation, deck, demo video, security self-assessment, execution evidence, licences, public demo, test cases ([checklist](docs/competition/SUBMISSION_CHECKLIST.md)) | Done |
+
+Every milestone with its exit criteria is in the [development roadmap](docs/DEVELOPMENT_ROADMAP.md).
 
 ## Quick start
 

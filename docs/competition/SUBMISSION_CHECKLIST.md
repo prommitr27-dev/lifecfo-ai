@@ -29,7 +29,7 @@ submitting.
 | # | Item | Requirement | Where it will live | State |
 |---|---|---|---|---|
 | 1 | Technical documentation | System architecture, core algorithm description, security design | [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) (submission document, as built), with detail in `docs/architecture`, `docs/financial_model`, `docs/SECURITY_DESIGN.md`, `docs/SHOCKPROOF_DESIGN.md`, `docs/RECOVERY_ENGINE.md` | Done: one document covering architecture, the input-to-result flow, the core algorithm, and security design; ShockProof and recovery design drafted for Members 3 and 2 to review |
-| 2 | Presentation deck | Final presentation of at most 10 minutes | `docs/competition/` | Not started |
+| 2 | Presentation deck | Final presentation of at most 10 minutes | Canva, submitted with the package | Done: English deck for a talk of at most 10 minutes, with the repository, demo video and live demo links |
 | 3 | Demo video | Optional, at most 5 minutes | Link in README | Recorded on 19 October 2026 on the current app (4:57, all 15 steps of `docs/competition/evidence/demo_15_steps.md`, English captions); https://youtu.be/wJTIE0QwGYI, linked in the README |
 | 4 | Source code | README, GitHub repository link, deployment instructions, test cases | This repository | README with live demo link, deployment table and settings; key test cases with inputs and expected results in `docs/testing/TEST_CASES.md`; evaluation against baselines in `docs/testing/EVALUATION_RESULTS.md`; test plan drafted in `docs/testing/TESTING_PLAN.md` and competitor analysis in `docs/COMPETITOR_ANALYSIS.md`, both for Member 3 to review |
 | 5 | Security self-assessment report | Permission-tier implementation and known-risk list | `docs/competition/SECURITY_SELF_ASSESSMENT.md` | Updated 19 October 2026 for the public demo, with focus areas (financial data, user access, wrong advice) and 14 known risks; for Member 3 to review |
@@ -37,8 +37,8 @@ submitting.
 
 ## Before submitting
 
-- [ ] Team registered on the official site.
+- [x] Team registered on the official site.
 - [x] Repository visible to reviewers (public since 18 October 2026).
 - [x] A licence file is chosen ([MIT](../../LICENSE)) and dependencies' licences are listed ([THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)).
 - [x] README quick start works on a clean machine (checked 18 October 2026 on a fresh clone with empty uv and npm caches: tests, demos, web app, API, and mobile web app).
-- [ ] Every number in the deck can be regenerated from the repository.
+- [x] Every number in the deck can be regenerated from the repository (Canva deck checked against main on 19 October 2026, 298 tests).
