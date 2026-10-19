@@ -21,7 +21,7 @@ evidence are core deliverables, not an add-on.
 | M7 | End-to-end deterministic demo | The 15-step demo runs from one script without an LLM; operation log exported | 16 Oct | Done (15 Oct) |
 | M8 | AI CFO agent | Provider layer, read and compute tools, offline agent, and chat view are done (14 Oct). Remaining: propose and execute tools after M3, live test on a free provider, wider injection test set | 17 Oct | Partly done |
 | M9 | Evaluation | 30 to 50 seeded scenarios; baseline comparison documented (`scripts/run_evaluation.py`, [results](testing/EVALUATION_RESULTS.md)) | 18 Oct | Done (15 Oct) |
-| M10 | Submission package | Technical docs, deck, demo video, security self-assessment, execution evidence | 19 Oct | In progress: security self-assessment and execution evidence written; deck and video not started |
+| M10 | Submission package | Technical docs, deck, demo video, security self-assessment, execution evidence | 19 Oct | Done (19 Oct): all six items ready, see the [submission checklist](competition/SUBMISSION_CHECKLIST.md) |
 | | Buffer and submit | Final check against the submission checklist | 20 Oct | |
 
 ## Scope adjustments after reading the rules
