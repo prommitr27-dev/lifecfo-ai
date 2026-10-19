@@ -41,4 +41,4 @@ submitting.
 - [x] Repository visible to reviewers (public since 18 October 2026).
 - [x] A licence file is chosen ([MIT](../../LICENSE)) and dependencies' licences are listed ([THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)).
 - [x] README quick start works on a clean machine (checked 18 October 2026 on a fresh clone with empty uv and npm caches: tests, demos, web app, API, and mobile web app).
-- [ ] Every number in the deck can be regenerated from the repository.
+- [x] Every number in the deck can be regenerated from the repository (Canva deck checked against main on 19 October 2026, 298 tests).
