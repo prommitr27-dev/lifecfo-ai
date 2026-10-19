@@ -86,8 +86,8 @@ each detected.
 
 ## Demo video
 
-A 4 minute 36 second walkthrough of the same 15 steps, with English captions,
-recorded from the web app. Link: *to be added by the team after upload*.
+A 4 minute 57 second walkthrough of the same 15 steps, with English captions,
+recorded from the web app: https://youtu.be/wJTIE0QwGYI
 
 ## Try it live
 
