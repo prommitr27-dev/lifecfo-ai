@@ -150,6 +150,27 @@ No configuration is needed: with no `.env` the agent runs offline and nothing
 leaves the machine. An LLM is opt-in through `LIFECFO_LLM_PROVIDER`
 ([AI providers](../AI_PROVIDERS.md)).
 
+### 2.5 Why the AI runs offline by default
+
+The LLM mode is implemented and tested (`lifecfo/llm/`, `LLMAgent` in
+`lifecfo/agents/agent.py`, live checks with Groq and Gemini on 14 October 2026).
+Setting `LIFECFO_LLM_PROVIDER` and a key turns it on with no code change,
+including on the public demo (as Streamlit Cloud secrets). The default, the
+public demo, the demo video, and the execution evidence nevertheless run with
+the offline agent, for four reasons:
+
+| Reason | Detail |
+|---|---|
+| Free and keyless | Reviewers can clone and run everything with no account or paid API; the team has no API budget |
+| Reproducible | Tests, the 15-step demo, and the evidence must produce identical output on every run; an LLM's wording is not deterministic |
+| Reliable | The free Groq plan allowed about three questions a minute in live testing; the Gemini free quota ran out during testing and answers took 10 to 20 seconds |
+| Safe | Nothing leaves the machine. The number check catches invented figures but not a correct figure in a wrong sentence, which a model produced once in live testing |
+
+The offline agent uses the same tools, the same permission tiers, and the same
+engines, so every capability and every safeguard shown in the evidence is the
+same in both modes; only the understanding and wording of the chat differ. The
+chat view says which mode answered each message and explains this choice.
+
 ## 3. End-to-end flow: from user input to result
 
 This section answers four questions: how user input enters the system, how the

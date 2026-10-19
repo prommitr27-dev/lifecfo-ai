@@ -52,6 +52,22 @@ The app, the tests, and the demo run with **no API key, no paid service, and no
 network**. An LLM is optional; see [docs/AI_PROVIDERS.md](docs/AI_PROVIDERS.md)
 for the free options (local Ollama, Groq free plan, Gemini free tier).
 
+### Why the AI runs offline by default
+
+LifeCFO supports an LLM through an API: set `LIFECFO_LLM_PROVIDER` (`groq`,
+`gemini`, `ollama`, or `custom`) and a key, and the chat uses the model with no
+code change. The model only understands the question, chooses the tool, and
+words the answer; every figure still comes from the engines, and an answer
+with a figure that matches no tool result is replaced by the offline answer.
+The default, the public demo, the video, and the evidence run offline on purpose:
+
+- **Free and keyless**: reviewers can clone and run everything without an account.
+- **Reproducible**: tests and execution evidence produce identical output every run.
+- **Reliable**: in live checks on 14 October 2026 the free Groq plan allowed about
+  three questions a minute, and the Gemini free quota ran out during testing.
+- **Safe**: nothing leaves the machine, and the number check cannot catch a
+  correct figure described in a wrong sentence, which a model did once in testing.
+
 Offline demo of the agent on synthetic data, and the 15-step competition demo
 with a pass or fail check on every step:
 
